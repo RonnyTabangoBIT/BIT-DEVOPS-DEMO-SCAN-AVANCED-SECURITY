@@ -1,3 +1,3 @@
-# flask: version vigente (valida). requests 2.25.1: CVEs conocidos (muestra el fallo)
+# flask: version vigente (valida). urllib3 1.26.4: CVE-2021-33503 (muestra el fallo en Dependency Review)
 flask==3.1.3
-requests==2.25.1
+urllib3==1.26.4
