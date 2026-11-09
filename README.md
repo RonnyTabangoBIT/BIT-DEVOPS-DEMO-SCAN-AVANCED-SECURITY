@@ -29,7 +29,8 @@ python -m app.app
    (en repos privados se requiere licencia de GitHub Advanced Security / Code Security).
 2. Hacer push (o merge) a `main`: el workflow solo se ejecuta en push a `main`.
 3. En **Actions**, el job `dependency-review` falla por `requests==2.25.1` (severidad ≥ moderate); `test` y `codeql` terminan OK.
-4. Ver las alertas en **Security → Code scanning** y **Security → Dependabot**.
+4. Cada job publica un resumen (tests, alertas CodeQL y dependencias vulnerables, indicando si hubo errores) en la página **Summary** de la ejecución.
+5. Ver las alertas en **Security → Code scanning** y **Security → Dependabot**.
 
 ## Alertas esperadas (CodeQL)
 
