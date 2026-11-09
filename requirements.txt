@@ -1,6 +1,3 @@
-# Intentionally outdated versions with known CVEs to trigger Dependabot / Dependency Review
-flask==2.2.2
-werkzeug==2.2.2
-jinja2==3.1.2
+# flask: version vigente (valida). requests 2.25.1: CVEs conocidos (muestra el fallo)
+flask==3.1.3
 requests==2.25.1
-pytest==8.3.3
