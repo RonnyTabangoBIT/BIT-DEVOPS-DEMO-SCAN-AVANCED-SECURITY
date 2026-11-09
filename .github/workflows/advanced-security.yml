@@ -17,7 +17,35 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pytest
-      - run: python -m pytest -v
+      - name: Run tests
+        id: pytest
+        run: python -m pytest -v --junitxml=pytest-report.xml
+
+      - name: Resumen de tests
+        if: always()
+        env:
+          OUTCOME: ${{ steps.pytest.outcome }}
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import os, xml.etree.ElementTree as ET
+          print("## 🧪 Resumen de Tests")
+          if not os.path.exists("pytest-report.xml"):
+              print(f"❌ No se generó el reporte de tests (resultado: `{os.environ['OUTCOME']}`).")
+              raise SystemExit
+          suite = ET.parse("pytest-report.xml").getroot()
+          suite = suite.find("testsuite") if suite.tag == "testsuites" else suite
+          total, fail, err, skip = (int(suite.get(k, 0)) for k in ("tests", "failures", "errors", "skipped"))
+          print("| Total | ✅ Pasaron | ❌ Fallaron | ⚠️ Errores | ⏭️ Omitidos |")
+          print("|---|---|---|---|---|")
+          print(f"| {total} | {total - fail - err - skip} | {fail} | {err} | {skip} |")
+          failed = [tc for tc in suite.iter("testcase") if tc.find("failure") is not None or tc.find("error") is not None]
+          if failed:
+              print("\n**Resultado: ❌ Se encontraron errores**\n")
+              for tc in failed:
+                  print(f"- `{tc.get('classname')}.{tc.get('name')}`")
+          else:
+              print("\n**Resultado: ✅ Sin errores**")
+          PY
 
   codeql:
     name: CodeQL (${{ matrix.language }})
@@ -37,17 +65,78 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: none
           queries: security-extended
-      - uses: github/codeql-action/analyze@v3
+      - name: Perform CodeQL Analysis
+        id: analyze
+        uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
+          output: sarif-results
+
+      - name: Resumen de CodeQL
+        if: always()
+        env:
+          LANGUAGE: ${{ matrix.language }}
+          OUTCOME: ${{ steps.analyze.outcome }}
+        run: |
+          {
+            echo "## 🔍 Resumen CodeQL ($LANGUAGE)"
+            shopt -s nullglob
+            files=(sarif-results/*.sarif)
+            if [ ${#files[@]} -eq 0 ]; then
+              echo "❌ El análisis no generó resultados (resultado: \`$OUTCOME\`)."
+              exit 0
+            fi
+            count=$(jq -s '[.[].runs[].results[]] | length' "${files[@]}")
+            echo "Alertas encontradas: **$count**"
+            echo
+            if [ "$count" -eq 0 ]; then
+              echo "**Resultado: ✅ Sin vulnerabilidades detectadas**"
+            else
+              echo "**Resultado: ❌ Se encontraron vulnerabilidades**"
+              echo
+              echo "| Regla | Nivel | Ubicación | Descripción |"
+              echo "|---|---|---|---|"
+              jq -rs '.[].runs[].results[] |
+                "| `\(.ruleId)` | \(.level // "warning") | `\(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)` | \(.message.text | split("\n")[0] | gsub("\\|"; "\\|")) |"' "${files[@]}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - name: Dependency Review
+        id: review
+        uses: actions/dependency-review-action@v4
         with:
           base-ref: ${{ github.event.before }}
           head-ref: ${{ github.sha }}
           fail-on-severity: moderate
+
+      - name: Resumen de dependencias
+        if: always()
+        env:
+          OUTCOME: ${{ steps.review.outcome }}
+          VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
+        run: |
+          {
+            echo "## 📦 Resumen Dependency Review"
+            if [ -z "$VULNERABLE_CHANGES" ] || [ "$VULNERABLE_CHANGES" = "[]" ]; then
+              if [ "$OUTCOME" = "success" ]; then
+                echo "**Resultado: ✅ Sin dependencias vulnerables**"
+              else
+                echo "**Resultado: ❌ El análisis falló** (resultado: \`$OUTCOME\`). Verifique que *Dependency graph* esté habilitado."
+              fi
+              exit 0
+            fi
+            count=$(echo "$VULNERABLE_CHANGES" | jq '[.[].vulnerabilities[]] | length')
+            echo "Vulnerabilidades encontradas: **$count**"
+            echo
+            echo "**Resultado: ❌ Se encontraron dependencias vulnerables**"
+            echo
+            echo "| Paquete | Versión | Severidad | Advisory | Descripción |"
+            echo "|---|---|---|---|---|"
+            echo "$VULNERABLE_CHANGES" | jq -r '.[] | .name as $n | .version as $v | .vulnerabilities[] |
+              "| \($n) | \($v) | \(.severity) | [\(.advisory_ghsa_id)](\(.advisory_url)) | \(.advisory_summary | gsub("\\|"; "\\|")) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
