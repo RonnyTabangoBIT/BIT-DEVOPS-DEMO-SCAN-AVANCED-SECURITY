@@ -4,5 +4,5 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-# VULNERABLE intencionalmente: CVE-2021-33503 (urllib3 < 1.26.5).
+# Caso ERRORES: VULNERABLE intencionalmente, varias HIGH (CVE-2021-33503, CVE-2023-43804, ...).
 urllib3 = "==1.26.4"
