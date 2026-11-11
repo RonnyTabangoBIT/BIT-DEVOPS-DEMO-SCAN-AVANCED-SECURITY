@@ -527,3 +527,5 @@ Configuración:
 - Reusable workflows: <https://docs.github.com/en/actions/sharing-automations/reusing-workflows>
 - Rulesets, required workflows y code scanning: <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets>
 - WeasyPrint: <https://doc.courtbouillon.org/weasyprint/>
+
+
