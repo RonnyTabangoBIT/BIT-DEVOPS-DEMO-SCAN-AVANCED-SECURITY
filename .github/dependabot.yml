@@ -1,9 +1,32 @@
 version: 2
 updates:
   - package-ecosystem: pip
-    directory: "/"
+    directories:
+      - "/demo/codeql-code-scanning"
+      - "/demo/copilot-autofix"
+      - "/demo/dependency-review"
     schedule:
       interval: weekly
+
+  # Demo de severidad mínima: sin PRs de actualización de versión (solo seguridad).
+  # El umbral de severidad se aplica con las reglas de auto-triage (Settings) y el job
+  # `dependabot-severity-gate` del workflow (MIN_SEVERITY).
+  - package-ecosystem: pip
+    directory: "/demo/dependabot-severidad-minima"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+      - security
+    commit-message:
+      prefix: "security"
+    groups:
+      security-minimum-severity:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

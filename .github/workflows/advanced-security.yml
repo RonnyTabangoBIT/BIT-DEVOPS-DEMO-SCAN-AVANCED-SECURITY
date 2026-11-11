@@ -3,14 +3,24 @@ name: Advanced Security Demo
 on:
   push:
     branches: [main]
+  # Necesario para que Copilot Autofix proponga parches en los Pull Requests (demo/copilot-autofix)
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Tests
+    name: Tests (${{ matrix.example }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [codeql-code-scanning, copilot-autofix]
+    defaults:
+      run:
+        working-directory: demo/${{ matrix.example }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,25 +39,26 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-report
-          path: pytest-report.xml
+          name: pytest-report-${{ matrix.example }}
+          path: demo/${{ matrix.example }}/pytest-report.xml
 
       # VULNERABLE: download-artifact < 4.1.3 (CVE-2024-42471) para la demo de Dependency Review
       - name: Download test report
         if: always()
         uses: actions/download-artifact@v4.1.2
         with:
-          name: pytest-report
-          path: report
+          name: pytest-report-${{ matrix.example }}
+          path: demo/${{ matrix.example }}/report
 
       - name: Resumen de tests
         if: always()
         env:
           OUTCOME: ${{ steps.pytest.outcome }}
+          EXAMPLE: ${{ matrix.example }}
         run: |
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import os, xml.etree.ElementTree as ET
-          print("## 🧪 Resumen de Tests")
+          print(f"## 🧪 Resumen de Tests ({os.environ['EXAMPLE']})")
           if not os.path.exists("report/pytest-report.xml"):
               print(f"❌ No se generó el reporte de tests (resultado: `{os.environ['OUTCOME']}`).")
               raise SystemExit
@@ -129,8 +140,8 @@ jobs:
         id: review
         uses: actions/dependency-review-action@v4
         with:
-          base-ref: ${{ github.event.before }}
-          head-ref: ${{ github.sha }}
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fail-on-severity: moderate
 
       - name: Resumen de dependencias
@@ -159,3 +170,47 @@ jobs:
             echo "$VULNERABLE_CHANGES" | jq -r '.[] | .name as $n | .version as $v | .vulnerabilities[] |
               "| \($n) | \($v) | \(.severity) | [\(.advisory_ghsa_id)](\(.advisory_url)) | \(.advisory_summary | gsub("\\|"; "\\|")) |"'
           } >> "$GITHUB_STEP_SUMMARY"
+  # Control de severidad mínima de Dependabot (demo/dependabot-severidad-minima).
+  # GITHUB_TOKEN no puede leer alertas de Dependabot: requiere el secreto DEPENDABOT_ALERTS_TOKEN
+  # (fine-grained PAT con permiso "Dependabot alerts: Read-only"). Sin el secreto, el job se omite con aviso.
+  dependabot-severity-gate:
+    name: Dependabot severidad mínima
+    runs-on: ubuntu-latest
+    env:
+      MIN_SEVERITY: high # low | medium | high | critical
+      MANIFEST_PREFIX: demo/dependabot-severidad-minima/
+      GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
+    steps:
+      - name: Evaluar alertas abiertas de Dependabot
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::Secreto DEPENDABOT_ALERTS_TOKEN no configurado; se omite el control de severidad mínima."
+            echo "## 🛡️ Dependabot severidad mínima: ⚠️ omitido (falta DEPENDABOT_ALERTS_TOKEN)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100" \
+            | jq 'add // [] | [.[] | select(.dependency.manifest_path | startswith(env.MANIFEST_PREFIX))]' > alerts.json
+          rank='{"low":1,"medium":2,"high":3,"critical":4}'
+          blocking=$(jq --argjson r "$rank" '[.[] | select($r[.security_advisory.severity] >= $r[env.MIN_SEVERITY])] | length' alerts.json)
+          total=$(jq 'length' alerts.json)
+          {
+            echo "## 🛡️ Dependabot severidad mínima (umbral: \`$MIN_SEVERITY\`)"
+            echo "Alertas abiertas en \`$MANIFEST_PREFIX\`: **$total** — bloqueantes (>= umbral): **$blocking**"
+            echo
+            if [ "$total" -gt 0 ]; then
+              echo "| Paquete | Severidad | Bloquea | Advisory | Descripción |"
+              echo "|---|---|---|---|---|"
+              jq -r --argjson r "$rank" '.[] |
+                "| \(.security_vulnerability.package.name) | \(.security_advisory.severity) | \(if $r[.security_advisory.severity] >= $r[env.MIN_SEVERITY] then "❌" else "➖" end) | [\(.security_advisory.ghsa_id)](\(.html_url)) | \(.security_advisory.summary | gsub("\\|"; "\\|")) |"' alerts.json
+              echo
+            fi
+            if [ "$blocking" -gt 0 ]; then
+              echo "**Resultado: ❌ Hay vulnerabilidades con severidad >= $MIN_SEVERITY**"
+            else
+              echo "**Resultado: ✅ Ninguna vulnerabilidad supera el umbral**"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$blocking" -gt 0 ]; then
+            echo "::error::$blocking alerta(s) de Dependabot con severidad >= $MIN_SEVERITY"
+            exit 1
+          fi
