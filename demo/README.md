@@ -11,7 +11,7 @@ Ejemplos **intencionalmente vulnerables** para probar GitHub Advanced Security c
 | [`codeql-code-scanning/`](codeql-code-scanning/) | Code scanning con CodeQL (SQLi, command injection, XSS, path traversal, debug, code injection en Actions) | `test`, `codeql` |
 | [`dependency-review/`](dependency-review/) | Bloqueo de dependencias vulnerables en push/PR (`urllib3==1.26.4`, `actions/download-artifact@v4.1.2`) | `dependency-review` |
 | [`copilot-autofix/`](copilot-autofix/) | Parches sugeridos por Copilot Autofix sobre alertas de CodeQL en PRs (incluye `errores/`) | `test`, `codeql` |
-| [`dependabot-severidad-minima/`](dependabot-severidad-minima/) | Falla cuando las vulnerabilidades `>= MIN_SEVERITY` superan `MAX_ALLOWED` (casos en `errores/`) | `dependabot-severity-gate` |
+| [`dependabot-severidad-minima/`](dependabot-severidad-minima/) | Falla cuando las vulnerabilidades de una severidad superan las permitidas (`MAX_CRITICAL`, `MAX_HIGH`, ...; casos en `errores/`) | `dependabot-severity-gate` |
 
 El workflow [`advanced-security.yml`](../.github/workflows/advanced-security.yml) y
 [`dependabot.yml`](../.github/dependabot.yml) permanecen en `.github/` en la raíz porque GitHub solo los lee desde ahí.

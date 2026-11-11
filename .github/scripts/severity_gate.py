@@ -1,16 +1,19 @@
-"""Gate de severidad mínima para dependencias pip (demo/dependabot-severidad-minima).
+"""Gate de umbrales de vulnerabilidades para dependencias pip (demo/dependabot-severidad-minima).
 
 Lee los manifiestos (requirements*.txt y Pipfile) de un directorio, consulta la GitHub Advisory
-Database (la misma fuente que usa Dependabot) y falla cuando las vulnerabilidades con severidad
->= MIN_SEVERITY superan MAX_ALLOWED (cantidad de vulnerabilidades bloqueantes permitidas).
+Database (la misma fuente que usa Dependabot) y falla cuando, para alguna severidad, la cantidad de
+vulnerabilidades encontradas supera la cantidad permitida para esa severidad.
 
 A diferencia de la API de alertas de Dependabot, funciona en cualquier rama/PR y solo necesita
 GITHUB_TOKEN (opcional, para evitar el límite de peticiones anónimas).
 
 Variables de entorno:
-  MANIFEST_DIRECTORY  directorio a escanear (recursivo)       por defecto: demo/dependabot-severidad-minima
-  MIN_SEVERITY        low | medium | high | critical          por defecto: high
-  MAX_ALLOWED         vulnerabilidades bloqueantes permitidas  por defecto: 0
+  MANIFEST_DIRECTORY  directorio a escanear (recursivo)   por defecto: demo/dependabot-severidad-minima
+  MAX_CRITICAL        críticas permitidas                  por defecto: 0
+  MAX_HIGH            altas permitidas                     por defecto: 0
+  MAX_MEDIUM          medias permitidas                    por defecto: sin límite
+  MAX_LOW             bajas permitidas                     por defecto: sin límite
+                      (vacío o -1 = sin límite)
   GITHUB_TOKEN        token para la API (opcional)
   GITHUB_STEP_SUMMARY archivo de resumen de Actions (si no existe, se imprime en stdout)
 """
@@ -108,13 +111,27 @@ def md(text):
     return (text or "").replace("|", "\\|").replace("\n", " ")
 
 
+LABELS = {"critical": "Críticas", "high": "Altas", "medium": "Medias", "low": "Bajas"}
+DEFAULT_LIMITS = {"critical": "0", "high": "0", "medium": "", "low": ""}
+
+
+def read_limits():
+    """Umbral permitido por severidad; None = sin límite."""
+    limits = {}
+    for sev in ORDER:
+        raw = os.environ.get(f"MAX_{sev.upper()}", DEFAULT_LIMITS[sev]).strip()
+        try:
+            value = int(raw) if raw else -1
+        except ValueError:
+            sys.exit(f"MAX_{sev.upper()} inválido: {raw!r} (use un entero, vacío o -1 = sin límite)")
+        limits[sev] = None if value < 0 else value
+    return limits
+
+
 def main():
     directory = Path(os.environ.get("MANIFEST_DIRECTORY", "demo/dependabot-severidad-minima"))
-    min_severity = os.environ.get("MIN_SEVERITY", "high").lower()
-    max_allowed = int(os.environ.get("MAX_ALLOWED", "0"))
     token = os.environ.get("GITHUB_TOKEN", "")
-    if min_severity not in RANK:
-        sys.exit(f"MIN_SEVERITY inválido: {min_severity} (use low | medium | high | critical)")
+    limits = read_limits()
 
     deps = find_dependencies(directory)
     cache, findings = {}, []
@@ -126,43 +143,46 @@ def main():
             severity = "medium" if adv["severity"] == "moderate" else adv["severity"]
             findings.append({
                 "manifest": path.as_posix(), "line": lineno, "package": name, "version": version,
-                "severity": severity, "ghsa": adv["ghsa_id"], "cve": adv.get("cve_id") or "",
-                "url": adv["html_url"], "summary": adv.get("summary", ""),
-                "blocking": RANK.get(severity, 0) >= RANK[min_severity],
+                "severity": severity, "ghsa": adv["ghsa_id"], "url": adv["html_url"],
+                "summary": adv.get("summary", ""),
             })
 
     findings.sort(key=lambda f: (-RANK.get(f["severity"], 0), f["manifest"], f["package"]))
-    blocking = [f for f in findings if f["blocking"]]
-    failed = len(blocking) > max_allowed
+    counts = {sev: sum(f["severity"] == sev for f in findings) for sev in ORDER}
+    exceeded = [sev for sev in ORDER if limits[sev] is not None and counts[sev] > limits[sev]]
+
+    def fmt_limit(sev):
+        return "sin límite" if limits[sev] is None else str(limits[sev])
 
     out = [
-        "## 🛡️ Dependabot: control de severidad mínima",
+        "## 🛡️ Dependabot: umbral de vulnerabilidades por severidad",
         "",
         f"- **Directorio analizado:** `{directory.as_posix()}/` ({len(deps)} dependencias fijadas).",
-        f"- **Severidad mínima bloqueante:** `{min_severity}` (cuentan las vulnerabilidades con severidad igual o superior).",
-        f"- **Vulnerabilidades bloqueantes permitidas (umbral):** **{max_allowed}**.",
-        f"- **Total de vulnerabilidades:** **{len(findings)}** — bloqueantes: **{len(blocking)}**, "
-        f"bajo la severidad mínima: **{len(findings) - len(blocking)}**.",
+        f"- **Total de vulnerabilidades encontradas:** **{len(findings)}**.",
+        f"- **Severidades que superan su umbral:** "
+        f"{', '.join(f'**{LABELS[s]}**' for s in exceeded) if exceeded else 'ninguna'}.",
         "",
-        "| Severidad | Vulnerabilidades | Estado respecto a la severidad mínima |",
-        "|---|---:|---|",
+        "| Severidad | Encontradas | Permitidas | Exceso | Estado |",
+        "|---|---:|---:|---:|---|",
     ]
     for sev in ORDER:
-        count = sum(f["severity"] == sev for f in findings)
-        out.append(f"| {sev} | {count} | {'Bloquea' if RANK[sev] >= RANK[min_severity] else 'Permitida'} |")
+        over = 0 if limits[sev] is None else max(0, counts[sev] - limits[sev])
+        status = "❌ Supera el umbral" if sev in exceeded else "✅ Dentro del umbral"
+        out.append(f"| {LABELS[sev]} ({sev}) | {counts[sev]} | {fmt_limit(sev)} | {over} | {status} |")
+    out.append(f"| **Total** | **{len(findings)}** | | | {'❌' if exceeded else '✅'} |")
     out.append("")
     if findings:
-        out += ["| Manifiesto | Paquete | Severidad | Bloquea | Advisory | Descripción |", "|---|---|---|---|---|---|"]
+        out += ["| Manifiesto | Paquete | Severidad | Supera umbral | Advisory | Descripción |",
+                "|---|---|---|---|---|---|"]
         for f in findings:
             out.append(f"| `{f['manifest']}` | {f['package']}=={f['version']} | {f['severity']} | "
-                       f"{'❌' if f['blocking'] else '➖'} | [{f['ghsa']}]({f['url']}) | {md(f['summary'])} |")
+                       f"{'❌' if f['severity'] in exceeded else '➖'} | [{f['ghsa']}]({f['url']}) | {md(f['summary'])} |")
         out.append("")
-    if failed:
-        out.append(f"**Resultado: ❌ Se supera el umbral: {len(blocking)} vulnerabilidad(es) >= `{min_severity}` "
-                   f"(permitidas: {max_allowed}).**")
+    if exceeded:
+        detail = ", ".join(f"{LABELS[s].lower()} {counts[s]} de {limits[s]} permitidas" for s in exceeded)
+        out.append(f"**Resultado: ❌ Se supera el umbral de vulnerabilidades permitidas ({detail}).**")
     else:
-        out.append(f"**Resultado: ✅ Dentro del umbral: {len(blocking)} vulnerabilidad(es) >= `{min_severity}` "
-                   f"(permitidas: {max_allowed}).**")
+        out.append("**Resultado: ✅ Todas las severidades están dentro de su umbral.**")
 
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
@@ -171,13 +191,15 @@ def main():
     else:
         print("\n".join(out))
 
-    if failed:
+    if exceeded:
         # Anotaciones en el archivo/línea del manifiesto (visibles en el PR y en el run).
-        for f in blocking:
-            print(f"::error file={f['manifest']},line={f['line']},title={f['severity'].upper()} "
-                  f"{f['ghsa']}::{f['package']}=={f['version']}: {f['summary']}")
-        print(f"::error::Se supera el umbral de vulnerabilidades permitidas: {len(blocking)} con severidad "
-              f">= {min_severity} (máximo permitido: {max_allowed}).")
+        for f in findings:
+            if f["severity"] in exceeded:
+                print(f"::error file={f['manifest']},line={f['line']},title={f['severity'].upper()} "
+                      f"{f['ghsa']}::{f['package']}=={f['version']}: {f['summary']}")
+        for sev in exceeded:
+            print(f"::error::Vulnerabilidades {LABELS[sev].lower()}: {counts[sev]} encontradas, "
+                  f"{limits[sev]} permitidas.")
         sys.exit(1)
 
 

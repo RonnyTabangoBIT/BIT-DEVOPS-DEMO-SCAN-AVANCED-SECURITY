@@ -1,4 +1,4 @@
-# Caso BASE: solo vulnerabilidades por DEBAJO de la severidad mínima (MIN_SEVERITY=high).
-#   requests==2.31.0 -> solo MEDIUM (CVE-2024-35195, CVE-2024-47081, ...) => permitida: no cuenta para el umbral
+# Caso BASE: vulnerabilidades DENTRO del umbral permitido (MAX_MEDIUM=15).
+#   requests==2.31.0 -> 3 MEDIUM (CVE-2024-35195, CVE-2024-47081, ...) => dentro del umbral
 # Si se elimina la carpeta errores/, el job `dependabot-severity-gate` pasa en verde.
 requests==2.31.0

@@ -174,13 +174,16 @@ jobs:
   # Control de severidad mínima de Dependabot (demo/dependabot-severidad-minima).
   # Evalúa los manifiestos del directorio contra la GitHub Advisory Database (misma fuente que Dependabot),
   # por lo que funciona en cualquier rama/PR y solo usa GITHUB_TOKEN.
-  # Falla cuando las vulnerabilidades con severidad >= MIN_SEVERITY superan MAX_ALLOWED.
+  # Falla cuando, para alguna severidad, las vulnerabilidades encontradas superan las permitidas (MAX_*).
   dependabot-severity-gate:
     name: Dependabot severidad mínima
     runs-on: ubuntu-latest
     env:
-      MIN_SEVERITY: high # low | medium | high | critical
-      MAX_ALLOWED: 0 # cantidad de vulnerabilidades bloqueantes permitidas
+      # Vulnerabilidades permitidas por severidad (vacío o -1 = sin límite)
+      MAX_CRITICAL: 0
+      MAX_HIGH: 2
+      MAX_MEDIUM: 15
+      MAX_LOW: -1
       MANIFEST_DIRECTORY: demo/dependabot-severidad-minima
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:

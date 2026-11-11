@@ -1,5 +1,5 @@
 # Caso ERRORES: dependencias INTENCIONALMENTE vulnerables que SUPERAN el umbral
-# (MIN_SEVERITY=high, MAX_ALLOWED=0). Hacen fallar el job `dependabot-severity-gate`.
+# (MAX_CRITICAL=0, MAX_HIGH=2). Hacen fallar el job `dependabot-severity-gate`.
 #   pyyaml==5.3  -> CRITICAL (CVE-2020-1747, CVE-2020-14343)
 #   jinja2==2.10 -> HIGH (CVE-2019-10906) + varias MEDIUM
 pyyaml==5.3
