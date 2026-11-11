@@ -198,7 +198,7 @@ jobs:
           total=$(jq 'length' alerts.json)
           repo_total=$(jq 'length' all-alerts.json)
           allowed=$(jq --argjson r "$rank" '[.[] | select($r[.security_advisory.severity] < $r[env.MIN_SEVERITY])] | length' alerts.json)
-          threshold_rank=$(jq -r --argjson r "$rank" --arg s "$MIN_SEVERITY" '$r[$s]')
+          threshold_rank=$(jq -nr --argjson r "$rank" --arg s "$MIN_SEVERITY" '$r[$s]')
           {
             echo "## 🛡️ Dependabot: resumen de vulnerabilidades"
             echo
@@ -212,7 +212,7 @@ jobs:
             echo "|---|---:|---|"
             for severity in critical high medium low; do
               count=$(jq --arg severity "$severity" '[.[] | select(.security_advisory.severity == $severity)] | length' alerts.json)
-              severity_rank=$(jq -r --argjson r "$rank" --arg s "$severity" '$r[$s]')
+              severity_rank=$(jq -nr --argjson r "$rank" --arg s "$severity" '$r[$s]')
               if [ "$severity_rank" -ge "$threshold_rank" ]; then
                 status="Bloquea"
               else
