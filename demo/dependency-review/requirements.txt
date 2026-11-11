@@ -1,2 +1,2 @@
 # urllib3 1.26.4: CVE-2021-33503 (muestra el fallo en Dependency Review)
-urllib3==1.26.4
+urllib3==2.8.0
