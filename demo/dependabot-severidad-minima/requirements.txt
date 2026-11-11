@@ -1,8 +1,4 @@
-# Dependencias INTENCIONALMENTE vulnerables con distintas severidades (GitHub Advisory Database)
-# para demostrar el control de severidad mínima con Dependabot.
-#   pyyaml==5.3     -> CRITICAL (CVE-2020-1747, CVE-2020-14343)   => supera el umbral: PR de Dependabot + falla el gate
-#   jinja2==2.10    -> HIGH (CVE-2019-10906) + varias MODERATE     => supera el umbral: PR de Dependabot + falla el gate
-#   requests==2.31.0 -> solo MODERATE (CVE-2024-35195, ...)          => bajo el umbral: se descarta/pospone por la regla de auto-triage
-pyyaml==5.3
-jinja2==2.10
+# Caso BASE: solo vulnerabilidades por DEBAJO de la severidad mínima (MIN_SEVERITY=high).
+#   requests==2.31.0 -> solo MEDIUM (CVE-2024-35195, CVE-2024-47081, ...) => permitida: no cuenta para el umbral
+# Si se elimina la carpeta errores/, el job `dependabot-severity-gate` pasa en verde.
 requests==2.31.0

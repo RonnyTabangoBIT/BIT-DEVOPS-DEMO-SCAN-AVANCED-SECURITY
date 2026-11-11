@@ -10,8 +10,8 @@ Ejemplos **intencionalmente vulnerables** para probar GitHub Advanced Security c
 |---------|---------------|------------------|
 | [`codeql-code-scanning/`](codeql-code-scanning/) | Code scanning con CodeQL (SQLi, command injection, XSS, path traversal, debug, code injection en Actions) | `test`, `codeql` |
 | [`dependency-review/`](dependency-review/) | Bloqueo de dependencias vulnerables en push/PR (`urllib3==1.26.4`, `actions/download-artifact@v4.1.2`) | `dependency-review` |
-| [`copilot-autofix/`](copilot-autofix/) | Parches sugeridos por Copilot Autofix sobre alertas de CodeQL en PRs | `test`, `codeql` |
-| [`dependabot-severidad-minima/`](dependabot-severidad-minima/) | Control de severidad mínima de vulnerabilidades con Dependabot | `dependabot-severity-gate` |
+| [`copilot-autofix/`](copilot-autofix/) | Parches sugeridos por Copilot Autofix sobre alertas de CodeQL en PRs (incluye `errores/`) | `test`, `codeql` |
+| [`dependabot-severidad-minima/`](dependabot-severidad-minima/) | Falla cuando las vulnerabilidades `>= MIN_SEVERITY` superan `MAX_ALLOWED` (casos en `errores/`) | `dependabot-severity-gate` |
 
 El workflow [`advanced-security.yml`](../.github/workflows/advanced-security.yml) y
 [`dependabot.yml`](../.github/dependabot.yml) permanecen en `.github/` en la raíz porque GitHub solo los lee desde ahí.
@@ -29,14 +29,10 @@ Estos ajustes no se pueden versionar en el repositorio y deben hacerse desde la 
    - Verificar que **Copilot Autofix** esté habilitado (Code scanning → *Copilot Autofix*: On).
    - En repos privados se requiere licencia de **GitHub Code Security** (Advanced Security).
 2. **Reglas de auto-triage de Dependabot** (Settings → Advanced Security → Dependabot rules → *New rule*):
-   - Regla “Ignorar bajo umbral”: *Severity* = `low`, `medium`; *Manifest* = `demo/dependabot-severidad-minima/requirements.txt`;
+   - Regla “Ignorar bajo umbral”: *Severity* = `low`, `medium`; *Manifest* = archivos de `demo/dependabot-severidad-minima/`;
      acción **Dismiss alerts** (o *Snooze until patch*).
    - Regla “Corregir sobre umbral”: *Severity* = `high`, `critical`; acción **Open a pull request**.
-3. **Secreto `DEPENDABOT_ALERTS_TOKEN`** (Settings → Secrets and variables → Actions → *New repository secret*):
-   fine-grained PAT con acceso a este repositorio y permiso **Dependabot alerts: Read-only**.
-   `GITHUB_TOKEN` no puede leer alertas de Dependabot; sin este secreto el job `dependabot-severity-gate` se omite con un aviso.
-   Para que Dependabot ejecute el gate en sus propios PRs, crear el mismo secreto en *Secrets → Dependabot*.
-4. **(Opcional) Branch protection / ruleset sobre `main`** (Settings → Rules → Rulesets): exigir los checks
+3. **(Opcional) Branch protection / ruleset sobre `main`** (Settings → Rules → Rulesets): exigir los checks
    `Dependency Review`, `CodeQL (python)` y `Dependabot severidad mínima`, y la regla *Require code scanning results*,
    para que los PRs no se puedan mergear con vulnerabilidades sobre el umbral.
 
