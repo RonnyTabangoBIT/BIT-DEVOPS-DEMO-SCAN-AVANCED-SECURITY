@@ -33,7 +33,8 @@ Estos ajustes no se pueden versionar en el repositorio y deben hacerse desde la 
      acción **Dismiss alerts** (o *Snooze until patch*).
    - Regla “Corregir sobre umbral”: *Severity* = `high`, `critical`; acción **Open a pull request**.
 3. **Ruleset sobre `main`** (Settings → Rules → Rulesets): exigir los checks `Dependabot severidad mínima`,
-   `Dependency Review`, `CodeQL (python)`, `CodeQL (actions)`, `Tests (codeql-code-scanning)` y `Tests (copilot-autofix)`,
+   `Code scanning severidad mínima`, `Tests (scripts de seguridad)`, `Dependency Review`, `CodeQL (python)`,
+   `CodeQL (actions)`, `Tests (codeql-code-scanning)` y `Tests (copilot-autofix)`,
    la regla *Require code scanning results*, **1 aprobación** y ☑ **Require review from Code Owners**.
 4. **Aprobación desde Actions** (Settings → Actions → General → Workflow permissions):
    ☑ *Allow GitHub Actions to create and approve pull requests*, para el job `Aprobación automática`.
@@ -41,14 +42,20 @@ Estos ajustes no se pueden versionar en el repositorio y deben hacerse desde la 
 5. **(Opcional) Secreto `SECURITY_AUDIT_TOKEN`** (Settings → Secrets and variables → Actions): fine-grained PAT con
    *Secret scanning alerts: Read-only*, para que la **Auditoría de excepciones** incluya secret scanning.
 
-## Workflows adicionales
+## Workflows y ejecución con push a `main`
 
-| Workflow | Disparo | Qué hace |
+| Workflow | Con push a `main` | Qué hace |
 |---|---|---|
-| [`autofix-agent.yml`](../.github/workflows/autofix-agent.yml) | Manual (`workflow_dispatch`) | Verifica los requisitos de Copilot Autofix, genera autofix por API para las alertas de CodeQL de `main` y, opcionalmente, abre un PR de remediación |
-| [`security-exceptions-audit.yml`](../.github/workflows/security-exceptions-audit.yml) | Lunes, manual o al cambiar la política | Valida los descartes de code scanning y secret scanning contra [`politica-descartes.yml`](../.github/security/politica-descartes.yml) y publica un registro CSV |
+| [`advanced-security.yml`](../.github/workflows/advanced-security.yml) | ✅ Directo (también en PRs) | Tests, CodeQL, **gate de code scanning** ([`excepciones-codigo.yml`](../.github/security/excepciones-codigo.yml)), dependency review, **gate de dependencias** ([`excepciones.yml`](../.github/security/excepciones.yml)) y tests de los scripts |
+| [`security-exceptions-audit.yml`](../.github/workflows/security-exceptions-audit.yml) | ✅ Directo (también lunes y manual) | Valida los descartes de code scanning y secret scanning contra [`politica-descartes.yml`](../.github/security/politica-descartes.yml) y contra `excepciones-codigo.yml`; publica un registro CSV |
+| [`autofix-agent.yml`](../.github/workflows/autofix-agent.yml) | ✅ Al terminar `advanced-security.yml` en `main` (también manual) | Verifica los requisitos de Copilot Autofix y genera autofix por API para las alertas de CodeQL; de forma manual puede abrir un PR de remediación |
 
-Ambos necesitan estar en `main` para poder ejecutarse manualmente. Ver las secciones 4.7 a 4.9 y 5 de
+### Excepciones de code scanning
+
+Funcionan igual que las de librerías: se registran por PR en [`excepciones-codigo.yml`](../.github/security/excepciones-codigo.yml)
+(protegido por CODEOWNERS) por **regla de CodeQL + ruta**, con justificación, aprobador y vencimiento. El job
+`Code scanning severidad mínima` aplica, en orden, las excepciones vigentes, las reglas por ruta (`demo/**` tiene su propio
+presupuesto) y el umbral global (`MAX_*`). Ver la sección 5.7 de
 [`INVESTIGACION-ADVANCED-SECURITY.md`](../INVESTIGACION-ADVANCED-SECURITY.md).
 
 ## Aprobadores (CODEOWNERS)

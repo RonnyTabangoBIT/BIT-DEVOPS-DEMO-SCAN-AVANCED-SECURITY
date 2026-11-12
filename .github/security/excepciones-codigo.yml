@@ -1,0 +1,88 @@
+# =====================================================================================
+# Control de excepciones del gate "Code scanning severidad mínima" (.github/scripts/code_scanning_gate.py)
+# Mismo esquema que excepciones.yml (dependencias), pero para hallazgos de CodeQL.
+#
+# Orden de evaluación de cada hallazgo:
+#   1. excepciones     -> si coincide con una excepción VIGENTE (regla + ruta), no cuenta.
+#   2. reglas_por_ruta -> si la ruta tiene regla, se evalúa contra su propio umbral.
+#   3. umbral global   -> MAX_CRITICAL / MAX_HIGH / MAX_MEDIUM / MAX_LOW del job en el workflow.
+#
+# Severidad: la de GitHub según el `security-severity` de la regla de CodeQL
+#   critical >= 9.0 | high 7.0-8.9 | medium 4.0-6.9 | low < 4.0
+#
+# Protegido por CODEOWNERS: todo cambio requiere la aprobación del aprobador de seguridad.
+# Un archivo inválido (campos faltantes, vencimiento fuera de política, ruta demasiado amplia...) hace FALLAR el gate.
+#
+# Patrones de `regla` y `ruta`: estilo glob, `*` coincide con cualquier texto (incluida `/`).
+#   regla: "py/sql-injection", "actions/code-injection/*"
+#   ruta:  "demo/codeql-code-scanning/app/app.py", "demo/copilot-autofix/**"
+# =====================================================================================
+
+politica:
+  max_dias_vigencia: 90               # ninguna excepción puede vencer más allá de hoy + 90 días
+  aviso_dias_antes: 15                # aviso (::warning) cuando falten 15 días o menos
+  permitir_excepcion_critical: false  # los hallazgos critical nunca se exceptúan
+
+# -------------------------------------------------------------------------------------
+# EXCEPCIONES
+# Campos obligatorios: id, regla, ruta, justificacion, aprobado_por, vence
+# Opcionales: severidades (critical|high|medium|low), solicitado_por
+# -------------------------------------------------------------------------------------
+excepciones:
+  # Excepción vigente: modo debug de Flask en la app de demo (nunca se despliega).
+  - id: EXC-COD-2026-001
+    regla: py/flask-debug
+    ruta: demo/codeql-code-scanning/**
+    justificacion: "Demo: la app no se despliega; el modo debug es parte del ejemplo de CodeQL."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2027-01-31
+
+  # Excepción que vence pronto -> genera aviso.
+  - id: EXC-COD-2026-002
+    regla: py/weak-sensitive-data-hashing
+    ruta: demo/copilot-autofix/autofix_app.py
+    justificacion: "Demo: se deja para probar Copilot Autofix; corrección planificada con pbkdf2."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2026-11-20
+
+  # Inyección de código en el workflow (paso "Mostrar commit"), intencional para la demo de CodeQL en Actions.
+  # Solo cubre medium/high: si CodeQL la clasifica critical, la política no permite exceptuarla y cae en REG-COD-002.
+  - id: EXC-COD-2026-003
+    regla: actions/code-injection/*
+    ruta: .github/workflows/advanced-security.yml
+    severidades: [medium, high]
+    justificacion: "Demo: ejemplo intencional de code injection en workflows para CodeQL (actions)."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2027-01-31
+
+  # Excepción VENCIDA: ya no se aplica; el hallazgo vuelve a contar (aquí, dentro de REG-COD-001).
+  - id: EXC-COD-2026-004
+    regla: py/url-redirection
+    ruta: demo/copilot-autofix/**
+    justificacion: "Demo: excepción vencida para mostrar que deja de aplicarse sola."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2026-10-31
+
+# -------------------------------------------------------------------------------------
+# REGLAS POR RUTA
+# Campos obligatorios: id, ruta, max {severidad: cantidad}, justificacion. Opcional: regla (por defecto "*").
+# Reemplazan al umbral global para las severidades que definen; el resto sigue el umbral global.
+# Si varias reglas coinciden, se usa la primera.
+# -------------------------------------------------------------------------------------
+reglas_por_ruta:
+  # Apps de demo INTENCIONALMENTE vulnerables: presupuesto propio de hallazgos.
+  - id: REG-COD-001
+    ruta: demo/**
+    max: { critical: 2, high: 5, medium: 3 }
+    justificacion: "Código de demostración vulnerable a propósito; no se despliega."
+
+  # Workflows: solo se tolera la inyección de la demo si CodeQL la clasifica critical.
+  - id: REG-COD-002
+    ruta: .github/workflows/**
+    regla: actions/code-injection/*
+    max: { critical: 1 }
+    justificacion: "Demo de CodeQL para Actions; cualquier otro hallazgo en workflows cuenta en el umbral global."

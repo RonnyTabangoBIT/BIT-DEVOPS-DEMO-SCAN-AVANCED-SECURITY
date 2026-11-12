@@ -8,10 +8,15 @@
 # =====================================================================================
 
 # Formato del ID de excepción que debe aparecer en el comentario cuando el motivo lo exige.
-# Ejemplo de comentario válido: "EXC-2026-010: solo se ejecuta en el entorno local de pruebas, sin input externo."
-formato_id_excepcion: "EXC-\\d{4}-\\d{3}"
+# Code scanning usa los IDs de .github/security/excepciones-codigo.yml (EXC-COD-AAAA-NNN);
+# secret scanning, IDs EXC-AAAA-NNN.
+# Ejemplo de comentario válido: "EXC-COD-2026-001: la app de demo no se despliega."
+formato_id_excepcion: "EXC-(COD-)?\\d{4}-\\d{3}"
 
 code_scanning:
+  # Fuente de verdad de las excepciones de código: un descarte que cite EXC-COD-* debe referirse a una
+  # excepción que exista en este archivo, esté vigente y cubra la regla y la ruta de la alerta.
+  archivo_excepciones: .github/security/excepciones-codigo.yml
   # Motivos de la API: "false positive" | "won't fix" | "used in tests" | "mitigated"
   motivos_permitidos: ["false positive", "won't fix", "used in tests", "mitigated"]
   comentario_minimo: 20                         # caracteres mínimos de justificación

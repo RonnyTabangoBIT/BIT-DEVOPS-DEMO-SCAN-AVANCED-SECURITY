@@ -87,6 +87,8 @@ GHAS es el conjunto de funciones de seguridad que GitHub integra en el repositor
 | Copilot Autofix | ✅ `demo/copilot-autofix/` (errores adicionales en un PR dedicado) |
 | Autofix con agente (remediación en lote) | ✅ Workflow **Autofix Agent**: requisitos, autofix por API y PR de remediación (ver [4.9](#49-prueba-en-este-repositorio-workflow-autofix-agent)) |
 | Excepciones de code scanning y secret scanning | ✅ Workflow **Auditoría de excepciones** con `politica-descartes.yml` y registro CSV (ver [5.6](#56-prueba-en-este-repositorio-workflow-auditoría-de-excepciones)) |
+| Gate de code scanning con excepciones | ✅ Job `Code scanning severidad mínima` con `.github/security/excepciones-codigo.yml`: mismo esquema que el de dependencias (ver [5.7](#57-gate-de-code-scanning-con-archivo-de-excepciones)) |
+| Ejecución con push a `main` | ✅ Los tres workflows corren con cada push a `main` (ver [5.8](#58-ejecución-con-push-a-main)) |
 | Delegated dismissal / delegated bypass / security campaigns | ⚙️ Documentado; requiere organización (ver [4.7](#47-autofix-con-agente-security-campaigns-y-agente-de-código-de-copilot) y [5.3](#53-quién-aprueba-delegated-alert-dismissal-y-delegated-bypass)) |
 | Ruleset sobre `main` + aprobación | ✅ Status checks obligatorios + aprobación automática para la demo (ver [sección 6](#6-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) |
 | Secret scanning / Push protection | ⚙️ Se habilita en Settings, no requiere workflow |
@@ -845,15 +847,15 @@ Se habilitan desde *Organización → Settings → Code security → Configurati
 ### 5.5 Procedimiento propuesto
 
 1. **Corregir primero**: aplicar Autofix o corregir el código, o **rotar** el secreto.
-2. Si no se puede corregir, **registrar la excepción** en `.github/security/excepciones.yml` (o el registro central de 3.3) con ID `EXC-AAAA-NNN`, justificación, responsable y vencimiento. El archivo está protegido por CODEOWNERS, así que la entrada requiere aprobación.
-3. **Descartar la alerta** con el motivo correspondiente y el **ID de excepción en el comentario**. En una organización, el descarte pasa por **delegated alert dismissal** y el equipo de seguridad lo aprueba.
+2. Si no se puede corregir, **registrar la excepción por PR** en el archivo que corresponde, con justificación, responsable y vencimiento: `.github/security/excepciones-codigo.yml` para code scanning (ID `EXC-COD-AAAA-NNN`, por regla de CodeQL y ruta) o `.github/security/excepciones.yml` para dependencias (ID `EXC-AAAA-NNN`). Ambos archivos están protegidos por CODEOWNERS, así que la entrada requiere aprobación. Al hacer merge, el gate correspondiente la aplica automáticamente (ver [5.7](#57-gate-de-code-scanning-con-archivo-de-excepciones)).
+3. (Opcional) **Descartar la alerta** en GitHub con el motivo correspondiente y el **ID de excepción en el comentario**. La auditoría verifica que el ID exista en el archivo, esté vigente y cubra la regla y la ruta. En una organización, el descarte pasa por **delegated alert dismissal** y el equipo de seguridad lo aprueba.
 4. Para secretos, preferir siempre `revoked`. El bypass de push protection pasa por **delegated bypass**. Un bypass con *I'll fix it later* debe resolverse en el plazo de la política.
 5. **Auditar** de forma periódica que cada descarte cumpla la política (motivo, justificación, ID, aprobador) y conservar el registro.
 6. **Revisar** las excepciones vencidas: reabrir la alerta o renovar la excepción con una nueva aprobación.
 
 ### 5.6 Prueba en este repositorio: workflow *Auditoría de excepciones*
 
-El workflow [`security-exceptions-audit.yml`](.github/workflows/security-exceptions-audit.yml) ejecuta [`security_exceptions_audit.py`](.github/scripts/security_exceptions_audit.py) cada lunes, de forma manual o cuando cambia la política. El script valida las alertas descartadas contra [`politica-descartes.yml`](.github/security/politica-descartes.yml):
+El workflow [`security-exceptions-audit.yml`](.github/workflows/security-exceptions-audit.yml) ejecuta [`security_exceptions_audit.py`](.github/scripts/security_exceptions_audit.py) con cada push a `main`, cada lunes y de forma manual. El script valida las alertas descartadas contra [`politica-descartes.yml`](.github/security/politica-descartes.yml):
 
 | Regla de la política | Code scanning | Secret scanning |
 |---|---|---|
@@ -863,14 +865,16 @@ El workflow [`security-exceptions-audit.yml`](.github/workflows/security-excepti
 | Quién puede descartar | Lista `aprobadores` | Lista `aprobadores` |
 | Aprobación delegada | `requiere_aprobacion_delegada` (desactivado en el repo personal) para `critical` y `high` | — |
 | Bypass de push protection | — | Máximo 7 días abierta tras el bypass |
+| ID citado en el comentario | `EXC-COD-*` debe existir en `excepciones-codigo.yml`, estar vigente y cubrir la regla y la ruta | — |
 
 **Resultado:** publica en el Summary una tabla por excepción (tipo, alerta, hallazgo, severidad, motivo, justificación, quién, cuándo, aprobado por y si cumple), sube el registro de trazabilidad como artifact CSV (`registro-excepciones-<run>`, retenido 90 días) y **falla** si alguna excepción no cumple la política.
 
 **Cómo probarlo:**
 
-1. Hacer merge a `main` y ejecutar *Actions → Auditoría de excepciones → Run workflow*.
+1. Hacer merge a `main` (la auditoría corre sola con el push) o ejecutar *Actions → Auditoría de excepciones → Run workflow*.
 2. En *Security → Code scanning*, descartar una alerta de la demo, por ejemplo `py/flask-debug` en `demo/codeql-code-scanning/app/app.py`:
-   - Motivo **Won't fix** con el comentario `EXC-2026-010: app de demo, nunca se despliega a producción` → ✅ cumple.
+   - Motivo **Won't fix** con el comentario `EXC-COD-2026-001: app de demo, nunca se despliega a producción` → ✅ cumple (la excepción existe, está vigente y cubre `py/flask-debug`).
+   - Motivo **Won't fix** con el comentario `EXC-COD-2026-999: aprobada por correo` → ❌ la excepción no existe en el archivo.
    - Motivo **Won't fix** con el comentario `no aplica` → ❌ justificación corta y sin ID de excepción.
 3. Volver a ejecutar el workflow y revisar la tabla y el CSV.
 4. (Opcional) Para incluir secret scanning, crear el secreto `SECURITY_AUDIT_TOKEN`: fine-grained PAT con *Secret scanning alerts: Read-only* sobre el repo.
@@ -884,20 +888,23 @@ Para validar la política sin descartar alertas reales, el workflow tiene un mod
 | Opción | Qué audita | Resultado esperado |
 |---|---|---|
 | `no` | Alertas reales de la API | Según los descartes hechos en GitHub |
-| `descartes-con-errores` | [`descartes-simulados.json`](.github/security/pruebas/descartes-simulados.json) con la política del repo | ❌ 8 descartes no cumplen, 5 cumplen |
+| `descartes-con-errores` | [`descartes-simulados.json`](.github/security/pruebas/descartes-simulados.json) con la política del repo | ❌ 11 descartes no cumplen, 5 cumplen |
 | `politica-invalida` | [`politica-invalida.yml`](.github/security/pruebas/politica-invalida.yml) | ❌ 9 errores de configuración; no se evalúa ningún descarte |
 
 **Descartes simulados** (fecha de referencia 2026-11-12):
 
 | # | Tipo | Caso | Resultado | Regla que se valida |
 |---|---|---|---|---|
-| 101 | Code scanning | *Won't fix* con `EXC-2026-010` y justificación | ✅ | — |
+| 101 | Code scanning | *Won't fix* citando `EXC-COD-2026-001`, vigente y que cubre la regla | ✅ | — |
 | 102 | Code scanning | *False positive* con justificación técnica | ✅ | No requiere ID |
 | 103 | Code scanning | *Won't fix* con comentario `no aplica` | ❌ | Justificación mínima + ID de excepción |
 | 104 | Code scanning | *Won't fix* con justificación larga sin ID | ❌ | ID de excepción |
 | 105 | Code scanning | *False positive* descartado por `desarrollador-externo` | ❌ | Lista de aprobadores |
 | 106 | Code scanning | *Mitigated* sin ID | ❌ | ID de excepción |
 | 107 | Code scanning | *Used in tests* con comentario `test` | ❌ | Justificación mínima |
+| 108 | Code scanning | Cita `EXC-COD-2026-004`, que está vencida | ❌ | Excepción vigente en el archivo |
+| 109 | Code scanning | Cita `EXC-COD-2026-999`, que no existe | ❌ | Excepción registrada en el archivo |
+| 110 | Code scanning | Cita `EXC-COD-2026-001` para `py/sql-injection` | ❌ | La excepción debe cubrir la regla y la ruta |
 | 201 | Secret scanning | *Revoked* por un usuario externo | ✅ | Revocar es remediación, no excepción |
 | 202 | Secret scanning | *Used in tests* con `EXC-2026-011` | ✅ | — |
 | 203 | Secret scanning | *Used in tests* sin ID | ❌ | ID de excepción |
@@ -920,6 +927,89 @@ POLICY_FILE=.github/security/pruebas/politica-invalida.yml AUDIT_FIXTURES=.githu
 
 > En un repo personal no existen delegated dismissal ni delegated bypass: cualquier colaborador puede descartar. La auditoría es el **control detectivo** que compensa la falta del control preventivo. En una organización, se activan ambos mecanismos y se pone `requiere_aprobacion_delegada: true`.
 
+### 5.7 Gate de code scanning con archivo de excepciones
+
+Para los hallazgos de CodeQL, el repo aplica **el mismo esquema que el gate de dependencias** (3.5): un archivo de excepciones versionado y protegido por CODEOWNERS, reglas de umbral por ruta y umbrales globales por severidad. El job `code-scanning-gate` (**Code scanning severidad mínima**) ejecuta [`code_scanning_gate.py`](.github/scripts/code_scanning_gate.py) sobre los resultados SARIF que genera el job `codeql`, y usa el archivo [`.github/security/excepciones-codigo.yml`](.github/security/excepciones-codigo.yml).
+
+#### 5.7.1 Equivalencia con el gate de dependencias
+
+| | Gate de dependencias | Gate de code scanning |
+|---|---|---|
+| Job / check | `Dependabot severidad mínima` | `Code scanning severidad mínima` |
+| Fuente | Manifiestos + GitHub Advisory Database | SARIF de CodeQL (Python y Actions) |
+| Archivo | `.github/security/excepciones.yml` | `.github/security/excepciones-codigo.yml` |
+| Excepción por… | GHSA, paquete, versiones, severidad | **Regla de CodeQL** + **ruta**, severidad |
+| Umbral propio por… | Paquete y rango de versión (`reglas_por_paquete`) | **Ruta** y, opcionalmente, regla (`reglas_por_ruta`) |
+| Umbral global | `MAX_CRITICAL=0`, `MAX_HIGH=2`, `MAX_MEDIUM=15`, `MAX_LOW=-1` | `MAX_CRITICAL=0`, `MAX_HIGH=0`, `MAX_MEDIUM=2`, `MAX_LOW=-1` |
+| Política | 90 días, aviso a 15 días, `critical` no exceptuable | Igual; además, la `ruta` no puede cubrir todo el repositorio |
+| Orden | Excepción vigente → regla → global | Excepción vigente → regla → global |
+
+La severidad de cada hallazgo es la que muestra GitHub, calculada a partir del `security-severity` de la regla de CodeQL: **critical** ≥ 9.0, **high** 7.0–8.9, **medium** 4.0–6.9, **low** < 4.0. Los resultados sin severidad de seguridad (calidad de código) no se evalúan.
+
+#### 5.7.2 Archivo de excepciones de código
+
+```yaml
+excepciones:
+  - id: EXC-COD-2026-001
+    regla: py/flask-debug                 # patrón glob: "actions/code-injection/*" también vale
+    ruta: demo/codeql-code-scanning/**    # patrón glob; no puede ser "*" ni "**"
+    justificacion: "Demo: la app no se despliega; el modo debug es parte del ejemplo de CodeQL."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2027-01-31
+
+reglas_por_ruta:
+  - id: REG-COD-001
+    ruta: demo/**
+    max: { critical: 2, high: 5, medium: 3 }
+    justificacion: "Código de demostración vulnerable a propósito; no se despliega."
+```
+
+Configuración de la demo:
+
+| ID | Tipo | Alcance | Vence | Estado (al 2026-11-12) |
+|---|---|---|---|---|
+| `EXC-COD-2026-001` | Excepción | `py/flask-debug` en `demo/codeql-code-scanning/**` | 2027-01-31 | ✅ Vigente |
+| `EXC-COD-2026-002` | Excepción | `py/weak-sensitive-data-hashing` en `autofix_app.py` | 2026-11-20 | ⏳ Vence en 8 días (aviso) |
+| `EXC-COD-2026-003` | Excepción | `actions/code-injection/*` (medium/high) en el workflow | 2027-01-31 | ✅ Vigente |
+| `EXC-COD-2026-004` | Excepción | `py/url-redirection` en `demo/copilot-autofix/**` | 2026-10-31 | ⛔ Vencida: ya no se aplica |
+| `REG-COD-001` | Regla por ruta | `demo/**`: hasta 2 critical, 5 high y 3 medium | — | Presupuesto de las apps vulnerables |
+| `REG-COD-002` | Regla por ruta | `.github/workflows/**`, solo `actions/code-injection/*`: hasta 1 critical | — | Por si CodeQL clasifica la inyección del workflow como critical |
+
+Con estas reglas, cualquier hallazgo **critical o high fuera de `demo/`** (por ejemplo, en `.github/scripts/`) bloquea el merge, y los de `demo/` solo bloquean si superan su presupuesto.
+
+#### 5.7.3 Relación con los descartes en GitHub
+
+El archivo es la **fuente de verdad**. El gate no mira si una alerta fue descartada en la interfaz de GitHub: para que un hallazgo deje de contar, la excepción tiene que estar en `excepciones-codigo.yml` (y pasar por CODEOWNERS). Si además se descarta la alerta en GitHub, el comentario debe citar el ID y la **Auditoría de excepciones** verifica que ese ID **exista** en el archivo, **esté vigente** y **cubra la regla y la ruta** de la alerta (casos simulados #108, #109 y #110).
+
+#### 5.7.4 Pruebas
+
+[`test_code_scanning_gate.py`](.github/scripts/tests/test_code_scanning_gate.py) usa SARIF simulados con la estructura de CodeQL ([`pruebas/sarif/`](.github/security/pruebas/sarif)) y valida:
+
+| Escenario | Resultado |
+|---|---|
+| Estado actual de la demo | ✅ Pasa: 3 exceptuados, 6 dentro de `REG-COD-001`, avisos por `EXC-COD-2026-002` y `EXC-COD-2026-004` |
+| Nuevo hallazgo critical en `.github/scripts/` | ❌ Umbral global: 1 de 0 críticas |
+| Tercer hallazgo critical en `demo/` | ❌ `REG-COD-001`: 3 de 2 críticas |
+| Vencimiento de `EXC-COD-2026-002` (`GATE_TODAY=2026-11-25`) | ✅ La alta pasa a `REG-COD-001` (3 de 5) |
+| Archivo inválido: ruta `**`, `critical` exceptuado, vencimiento > 90 días, campos faltantes, `max` inválido | ❌ Errores de configuración |
+| Sin SARIF | ❌ El análisis no generó resultados |
+
+Para probar en local, desde la raíz del repo:
+
+```bash
+pip install pyyaml
+SARIF_DIR=.github/security/pruebas/sarif MAX_CRITICAL=0 MAX_HIGH=0 MAX_MEDIUM=2 python .github/scripts/code_scanning_gate.py
+```
+
+### 5.8 Ejecución con push a `main`
+
+| Workflow | Disparo con push a `main` | Qué valida |
+|---|---|---|
+| **Advanced Security Demo** | ✅ Directo (`push` a `main` y `pull_request`) | Tests, CodeQL, **gate de code scanning**, dependency review, **gate de dependencias**, tests de los scripts. En PRs, además, la aprobación automática |
+| **Auditoría de excepciones** | ✅ Directo (`push` a `main`), más los lunes y de forma manual | Descartes de code scanning y secret scanning contra la política y contra `excepciones-codigo.yml` |
+| **Autofix Agent** | ✅ Al terminar *Advanced Security Demo* en `main` (`workflow_run`), así trabaja con el análisis de CodeQL ya actualizado | Requisitos de Autofix y autofix para las alertas `high`/`critical` (sin crear PR). De forma manual, puede abrir el PR de remediación |
+
 ---
 
 ## 6. Gobierno del merge: rulesets, CODEOWNERS y aprobaciones
@@ -934,7 +1024,7 @@ En *Settings → Rules → Rulesets → New branch ruleset* (o importando el JSO
 | Target | **Include default branch** |
 | Restrict deletions / Block force pushes | ☑ |
 | Require a pull request before merging | **Required approvals: 1**; ☑ *Require review from Code Owners* (ver 6.4 y 6.5); *Require approval of the most recent reviewable push* ☐; *Require conversation resolution* ☑ |
-| Require status checks to pass | ☑ *Require branches to be up to date*; checks con origen **GitHub Actions**: `Dependabot severidad mínima`, `Dependency Review`, `CodeQL (python)`, `CodeQL (actions)`, `Tests (codeql-code-scanning)`, `Tests (copilot-autofix)` y, opcionalmente, `Tests (scripts de seguridad)` |
+| Require status checks to pass | ☑ *Require branches to be up to date*; checks con origen **GitHub Actions**: `Dependabot severidad mínima`, `Code scanning severidad mínima`, `Dependency Review`, `CodeQL (python)`, `CodeQL (actions)`, `Tests (codeql-code-scanning)`, `Tests (copilot-autofix)` y `Tests (scripts de seguridad)` |
 | Require code scanning results | `CodeQL`, Security alerts **High or higher**, Alerts **Errors** (repositorios públicos o con Code Security) |
 
 Puntos a tener en cuenta:

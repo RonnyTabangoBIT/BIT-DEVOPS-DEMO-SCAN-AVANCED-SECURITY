@@ -150,9 +150,12 @@ CASES = [("code_scanning", a) for a in FIXTURES["code_scanning"]] + [("secret_sc
 
 
 @pytest.mark.parametrize("tipo, alerta", CASES, ids=[f"#{a['number']} {a['_caso']}" for _, a in CASES])
-def test_descartes_simulados_dan_el_resultado_esperado(tipo, alerta):
+def test_descartes_simulados_dan_el_resultado_esperado(tipo, alerta, monkeypatch):
     if tipo == "code_scanning":
-        rows = audit.evaluate_code_scanning([alerta], POLICY)
+        monkeypatch.chdir(Path(__file__).resolve().parents[3])   # rutas del repo relativas a la raíz
+        code_exceptions = audit.load_code_exceptions(POLICY, FIXTURE_NOW.date(), [])
+        assert code_exceptions, "no se cargaron las excepciones de excepciones-codigo.yml"
+        rows = audit.evaluate_code_scanning([alerta], POLICY, code_exceptions, FIXTURE_NOW.date())
     else:
         rows = audit.evaluate_secret_scanning([alerta], POLICY, FIXTURE_NOW)
     assert len(rows) == 1

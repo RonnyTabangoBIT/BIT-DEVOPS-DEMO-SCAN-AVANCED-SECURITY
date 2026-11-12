@@ -19,8 +19,6 @@ on:
         default: "no"
   push:
     branches: [main]
-    paths:
-      - .github/security/politica-descartes.yml
 
 permissions:
   contents: read

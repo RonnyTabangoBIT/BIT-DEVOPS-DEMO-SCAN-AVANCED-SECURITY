@@ -3,124 +3,432 @@
   "fecha_referencia": "2026-11-12",
   "code_scanning": [
     {
-      "_caso": "VÁLIDO: won't fix con ID de excepción y justificación",
-      "_esperado": {"cumple": true},
-      "number": 101, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/101",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/flask-debug", "security_severity_level": "high"},
-      "most_recent_instance": {"location": {"path": "demo/codeql-code-scanning/app/app.py", "start_line": 79}},
-      "dismissed_reason": "won't fix", "dismissed_comment": "EXC-2026-010: app de demo, nunca se despliega a producción",
-      "dismissed_by": {"login": "RonnyTabangoBIT"}, "dismissed_at": "2026-11-10T14:00:00Z", "dismissal_approved_by": null
+      "_caso": "VÁLIDO: won't fix citando una excepción vigente del archivo que cubre la regla y la ruta",
+      "_esperado": {
+        "cumple": true
+      },
+      "number": 101,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/101",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/flask-debug",
+        "security_severity_level": "high"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 79
+        }
+      },
+      "dismissed_reason": "won't fix",
+      "dismissed_comment": "EXC-COD-2026-001: app de demo, nunca se despliega a producción",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T14:00:00Z",
+      "dismissal_approved_by": null
     },
     {
       "_caso": "VÁLIDO: false positive con justificación técnica (no requiere ID)",
-      "_esperado": {"cumple": true},
-      "number": 102, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/102",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/path-injection", "security_severity_level": "high"},
-      "most_recent_instance": {"location": {"path": "demo/codeql-code-scanning/app/app.py", "start_line": 69}},
-      "dismissed_reason": "false positive", "dismissed_comment": "El nombre de archivo se valida contra una lista blanca antes de abrirlo",
-      "dismissed_by": {"login": "RonnyTabangoBIT"}, "dismissed_at": "2026-11-10T14:05:00Z", "dismissal_approved_by": null
+      "_esperado": {
+        "cumple": true
+      },
+      "number": 102,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/102",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/path-injection",
+        "security_severity_level": "high"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 69
+        }
+      },
+      "dismissed_reason": "false positive",
+      "dismissed_comment": "El nombre de archivo se valida contra una lista blanca antes de abrirlo",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T14:05:00Z",
+      "dismissal_approved_by": null
     },
     {
       "_caso": "ERROR: won't fix sin justificación ni ID de excepción",
-      "_esperado": {"cumple": false, "problemas": ["justificación menor a 20 caracteres", "falta el ID de excepción"]},
-      "number": 103, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/103",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/reflective-xss", "security_severity_level": "medium"},
-      "most_recent_instance": {"location": {"path": "demo/codeql-code-scanning/app/app.py", "start_line": 62}},
-      "dismissed_reason": "won't fix", "dismissed_comment": "no aplica",
-      "dismissed_by": {"login": "RonnyTabangoBIT"}, "dismissed_at": "2026-11-10T14:10:00Z", "dismissal_approved_by": null
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "justificación menor a 20 caracteres",
+          "falta el ID de excepción"
+        ]
+      },
+      "number": 103,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/103",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/reflective-xss",
+        "security_severity_level": "medium"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 62
+        }
+      },
+      "dismissed_reason": "won't fix",
+      "dismissed_comment": "no aplica",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T14:10:00Z",
+      "dismissal_approved_by": null
     },
     {
       "_caso": "ERROR: won't fix con justificación larga pero sin ID de excepción",
-      "_esperado": {"cumple": false, "problemas": ["falta el ID de excepción"]},
-      "number": 104, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/104",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/sql-injection", "security_severity_level": "high"},
-      "most_recent_instance": {"location": {"path": "demo/codeql-code-scanning/app/app.py", "start_line": 45}},
-      "dismissed_reason": "won't fix", "dismissed_comment": "Se corregirá cuando se migre la capa de datos al ORM",
-      "dismissed_by": {"login": "RonnyTabangoBIT"}, "dismissed_at": "2026-11-10T14:15:00Z", "dismissal_approved_by": null
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "falta el ID de excepción"
+        ]
+      },
+      "number": 104,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/104",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/sql-injection",
+        "security_severity_level": "high"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 45
+        }
+      },
+      "dismissed_reason": "won't fix",
+      "dismissed_comment": "Se corregirá cuando se migre la capa de datos al ORM",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T14:15:00Z",
+      "dismissal_approved_by": null
     },
     {
       "_caso": "ERROR: descartado por un usuario que no está en la lista de aprobadores",
-      "_esperado": {"cumple": false, "problemas": ["no está en la lista de aprobadores"]},
-      "number": 105, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/105",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/command-line-injection", "security_severity_level": "critical"},
-      "most_recent_instance": {"location": {"path": "demo/codeql-code-scanning/app/app.py", "start_line": 54}},
-      "dismissed_reason": "false positive", "dismissed_comment": "El host se valida con una expresión regular estricta",
-      "dismissed_by": {"login": "desarrollador-externo"}, "dismissed_at": "2026-11-10T14:20:00Z", "dismissal_approved_by": null
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "no está en la lista de aprobadores"
+        ]
+      },
+      "number": 105,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/105",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/command-line-injection",
+        "security_severity_level": "critical"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 54
+        }
+      },
+      "dismissed_reason": "false positive",
+      "dismissed_comment": "El host se valida con una expresión regular estricta",
+      "dismissed_by": {
+        "login": "desarrollador-externo"
+      },
+      "dismissed_at": "2026-11-10T14:20:00Z",
+      "dismissal_approved_by": null
     },
     {
       "_caso": "ERROR: mitigated sin ID de excepción",
-      "_esperado": {"cumple": false, "problemas": ["falta el ID de excepción"]},
-      "number": 106, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/106",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/url-redirection", "security_severity_level": "medium"},
-      "most_recent_instance": {"location": {"path": "demo/copilot-autofix/autofix_app.py", "start_line": 37}},
-      "dismissed_reason": "mitigated", "dismissed_comment": "Mitigado por el WAF que bloquea redirecciones externas",
-      "dismissed_by": {"login": "RonnyTabangoBIT"}, "dismissed_at": "2026-11-10T14:25:00Z", "dismissal_approved_by": null
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "falta el ID de excepción"
+        ]
+      },
+      "number": 106,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/106",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/url-redirection",
+        "security_severity_level": "medium"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/copilot-autofix/autofix_app.py",
+          "start_line": 37
+        }
+      },
+      "dismissed_reason": "mitigated",
+      "dismissed_comment": "Mitigado por el WAF que bloquea redirecciones externas",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T14:25:00Z",
+      "dismissal_approved_by": null
     },
     {
       "_caso": "ERROR: used in tests con justificación demasiado corta",
-      "_esperado": {"cumple": false, "problemas": ["justificación menor a 20 caracteres"]},
-      "number": 107, "state": "dismissed", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/107",
-      "tool": {"name": "CodeQL"},
-      "rule": {"id": "py/weak-sensitive-data-hashing", "security_severity_level": "high"},
-      "most_recent_instance": {"location": {"path": "demo/copilot-autofix/autofix_app.py", "start_line": 29}},
-      "dismissed_reason": "used in tests", "dismissed_comment": "test",
-      "dismissed_by": {"login": "RonnyTabangoBIT"}, "dismissed_at": "2026-11-10T14:30:00Z", "dismissal_approved_by": null
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "justificación menor a 20 caracteres"
+        ]
+      },
+      "number": 107,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/107",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/weak-sensitive-data-hashing",
+        "security_severity_level": "high"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/copilot-autofix/autofix_app.py",
+          "start_line": 29
+        }
+      },
+      "dismissed_reason": "used in tests",
+      "dismissed_comment": "test",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T14:30:00Z",
+      "dismissal_approved_by": null
+    },
+    {
+      "_caso": "ERROR: cita una excepción del archivo que está VENCIDA",
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "está vencida"
+        ]
+      },
+      "number": 108,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/108",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/url-redirection",
+        "security_severity_level": "medium"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/copilot-autofix/autofix_app.py",
+          "start_line": 37
+        }
+      },
+      "dismissed_reason": "won't fix",
+      "dismissed_comment": "EXC-COD-2026-004: redirección aceptada temporalmente para la demo",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T15:08:00Z",
+      "dismissal_approved_by": null
+    },
+    {
+      "_caso": "ERROR: cita una excepción que NO EXISTE en el archivo",
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "no existe en el archivo"
+        ]
+      },
+      "number": 109,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/109",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/reflective-xss",
+        "security_severity_level": "medium"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 65
+        }
+      },
+      "dismissed_reason": "won't fix",
+      "dismissed_comment": "EXC-COD-2026-999: aprobada por correo, falta registrarla",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T15:09:00Z",
+      "dismissal_approved_by": null
+    },
+    {
+      "_caso": "ERROR: cita una excepción vigente que NO CUBRE la regla de la alerta",
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "no cubre"
+        ]
+      },
+      "number": 110,
+      "state": "dismissed",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/code-scanning/110",
+      "tool": {
+        "name": "CodeQL"
+      },
+      "rule": {
+        "id": "py/sql-injection",
+        "security_severity_level": "high"
+      },
+      "most_recent_instance": {
+        "location": {
+          "path": "demo/codeql-code-scanning/app/app.py",
+          "start_line": 49
+        }
+      },
+      "dismissed_reason": "won't fix",
+      "dismissed_comment": "EXC-COD-2026-001: misma app de demo, también se acepta",
+      "dismissed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "dismissed_at": "2026-11-10T15:10:00Z",
+      "dismissal_approved_by": null
     }
   ],
   "secret_scanning": [
     {
       "_caso": "VÁLIDO: secreto revocado (remediación, no excepción)",
-      "_esperado": {"cumple": true},
-      "number": 201, "state": "resolved", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/201",
+      "_esperado": {
+        "cumple": true
+      },
+      "number": 201,
+      "state": "resolved",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/201",
       "secret_type_display_name": "GitHub Personal Access Token",
-      "resolution": "revoked", "resolution_comment": "", "resolved_by": {"login": "desarrollador-externo"},
-      "resolved_at": "2026-11-09T10:00:00Z", "push_protection_bypassed": false
+      "resolution": "revoked",
+      "resolution_comment": "",
+      "resolved_by": {
+        "login": "desarrollador-externo"
+      },
+      "resolved_at": "2026-11-09T10:00:00Z",
+      "push_protection_bypassed": false
     },
     {
       "_caso": "VÁLIDO: used_in_tests con ID de excepción",
-      "_esperado": {"cumple": true},
-      "number": 202, "state": "resolved", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/202",
+      "_esperado": {
+        "cumple": true
+      },
+      "number": 202,
+      "state": "resolved",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/202",
       "secret_type_display_name": "AWS Access Key ID",
-      "resolution": "used_in_tests", "resolution_comment": "EXC-2026-011: clave falsa de los fixtures de pruebas",
-      "resolved_by": {"login": "RonnyTabangoBIT"}, "resolved_at": "2026-11-09T10:05:00Z", "push_protection_bypassed": false
+      "resolution": "used_in_tests",
+      "resolution_comment": "EXC-2026-011: clave falsa de los fixtures de pruebas",
+      "resolved_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "resolved_at": "2026-11-09T10:05:00Z",
+      "push_protection_bypassed": false
     },
     {
       "_caso": "ERROR: used_in_tests sin ID de excepción",
-      "_esperado": {"cumple": false, "problemas": ["falta el ID de excepción"]},
-      "number": 203, "state": "resolved", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/203",
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "falta el ID de excepción"
+        ]
+      },
+      "number": 203,
+      "state": "resolved",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/203",
       "secret_type_display_name": "Slack API Token",
-      "resolution": "used_in_tests", "resolution_comment": "Token de ejemplo usado en los tests de integración",
-      "resolved_by": {"login": "RonnyTabangoBIT"}, "resolved_at": "2026-11-09T10:10:00Z", "push_protection_bypassed": false
+      "resolution": "used_in_tests",
+      "resolution_comment": "Token de ejemplo usado en los tests de integración",
+      "resolved_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "resolved_at": "2026-11-09T10:10:00Z",
+      "push_protection_bypassed": false
     },
     {
       "_caso": "ERROR: wont_fix por usuario no aprobador, sin justificación ni ID",
-      "_esperado": {"cumple": false, "problemas": ["justificación menor a 20 caracteres", "falta el ID de excepción", "no está en la lista de aprobadores"]},
-      "number": 204, "state": "resolved", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/204",
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "justificación menor a 20 caracteres",
+          "falta el ID de excepción",
+          "no está en la lista de aprobadores"
+        ]
+      },
+      "number": 204,
+      "state": "resolved",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/204",
       "secret_type_display_name": "Azure Storage Account Key",
-      "resolution": "wont_fix", "resolution_comment": "",
-      "resolved_by": {"login": "desarrollador-externo"}, "resolved_at": "2026-11-09T10:15:00Z", "push_protection_bypassed": false
+      "resolution": "wont_fix",
+      "resolution_comment": "",
+      "resolved_by": {
+        "login": "desarrollador-externo"
+      },
+      "resolved_at": "2026-11-09T10:15:00Z",
+      "push_protection_bypassed": false
     },
     {
       "_caso": "ERROR: bypass de push protection (I'll fix it later) abierto más de 7 días",
-      "_esperado": {"cumple": false, "problemas": ["tras el bypass"]},
-      "number": 205, "state": "open", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/205",
+      "_esperado": {
+        "cumple": false,
+        "problemas": [
+          "tras el bypass"
+        ]
+      },
+      "number": 205,
+      "state": "open",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/205",
       "secret_type_display_name": "Stripe API Key",
-      "push_protection_bypassed": true, "push_protection_bypassed_by": {"login": "desarrollador-externo"},
-      "push_protection_bypassed_at": "2026-10-20T09:00:00Z", "push_protection_bypass_request_comment": "Lo corrijo después del release"
+      "push_protection_bypassed": true,
+      "push_protection_bypassed_by": {
+        "login": "desarrollador-externo"
+      },
+      "push_protection_bypassed_at": "2026-10-20T09:00:00Z",
+      "push_protection_bypass_request_comment": "Lo corrijo después del release"
     },
     {
       "_caso": "VÁLIDO: bypass de push protection reciente (dentro del plazo)",
-      "_esperado": {"cumple": true},
-      "number": 206, "state": "open", "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/206",
+      "_esperado": {
+        "cumple": true
+      },
+      "number": 206,
+      "state": "open",
+      "html_url": "https://github.com/RonnyTabangoBIT/BIT-DEVOPS-DEMO-SCAN-AVANCED-SECURITY/security/secret-scanning/206",
       "secret_type_display_name": "GitHub Personal Access Token",
-      "push_protection_bypassed": true, "push_protection_bypassed_by": {"login": "RonnyTabangoBIT"},
-      "push_protection_bypassed_at": "2026-11-10T09:00:00Z", "push_protection_bypass_request_comment": "Rotación programada para mañana"
+      "push_protection_bypassed": true,
+      "push_protection_bypassed_by": {
+        "login": "RonnyTabangoBIT"
+      },
+      "push_protection_bypassed_at": "2026-11-10T09:00:00Z",
+      "push_protection_bypass_request_comment": "Rotación programada para mañana"
     }
   ]
 }

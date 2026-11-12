@@ -16,6 +16,7 @@ Variables de entorno:
 """
 import csv
 import datetime
+import fnmatch
 import json
 import os
 import re
@@ -93,7 +94,23 @@ def _common_checks(reason, comment, actor, cfg, allowed_key, id_regex):
     return problems
 
 
-def evaluate_code_scanning(alerts, policy):
+def check_code_exception_refs(comment, rule_id, path, code_exceptions, today):
+    """Valida que los IDs EXC-COD-* citados en el comentario existan en excepciones-codigo.yml,
+    estén vigentes y cubran la regla y la ruta de la alerta (el archivo es la fuente de verdad)."""
+    problems = []
+    by_id = {e["id"]: e for e in code_exceptions}
+    for exc_id in sorted(set(re.findall(r"EXC-COD-\d{4}-\d{3}", comment or ""))):
+        exc = by_id.get(exc_id)
+        if not exc:
+            problems.append(f"la excepción `{exc_id}` no existe en el archivo de excepciones de código")
+        elif exc["vence"] < today:
+            problems.append(f"la excepción `{exc_id}` está vencida desde {exc['vence']}")
+        elif not (fnmatch.fnmatchcase(rule_id, exc["regla"]) and fnmatch.fnmatchcase(path, exc["ruta"])):
+            problems.append(f"la excepción `{exc_id}` no cubre `{rule_id}` en `{path}`")
+    return problems
+
+
+def evaluate_code_scanning(alerts, policy, code_exceptions=None, today=None):
     cfg = policy.get("code_scanning") or {}
     id_regex = policy.get("formato_id_excepcion", r"EXC-\d{4}-\d{3}")
     rows = []
@@ -108,6 +125,9 @@ def evaluate_code_scanning(alerts, policy):
         if cfg.get("requiere_aprobacion_delegada") and severity in (cfg.get("severidades_con_aprobacion") or []) and not approved_by:
             problems.append(f"severidad `{severity}` sin aprobación delegada (`dismissal_approved_by`)")
         loc = ((a.get("most_recent_instance") or {}).get("location") or {})
+        if code_exceptions is not None:
+            problems += check_code_exception_refs(comment, rule.get("id", ""), loc.get("path", ""),
+                                                  code_exceptions, today or datetime.date.today())
         rows.append({
             "tipo": "code scanning", "alerta": a.get("number"), "url": a.get("html_url", ""),
             "hallazgo": rule.get("id", ""), "severidad": severity,
@@ -172,6 +192,24 @@ def md(text):
     return str(text or "").replace("|", "\\|").replace("\n", " ")
 
 
+def load_code_exceptions(policy, today, notes):
+    """Excepciones de excepciones-codigo.yml, para cruzarlas con los IDs citados al descartar (None = no se cruza)."""
+    path = (policy.get("code_scanning") or {}).get("archivo_excepciones")
+    if not path:
+        return None
+    if not Path(path).is_file():
+        notes.append(f"⚠️ No se encontró `{path}`: no se verifican los IDs de excepción de código.")
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import code_scanning_gate  # mismo validador que usa el gate de code scanning
+    _, exceptions, _, errors = code_scanning_gate.load_policy(Path(path), today)
+    if errors:
+        notes.append(f"⚠️ `{path}` tiene errores; solo se cruzan sus excepciones válidas.")
+    notes.append(f"🔗 Los IDs `EXC-COD-*` citados al descartar se verifican contra `{path}` "
+                 f"({len(exceptions)} excepciones).")
+    return exceptions
+
+
 def main():
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     token = os.environ.get("GITHUB_TOKEN", "")
@@ -193,14 +231,16 @@ def main():
         if fixtures.get("fecha_referencia") and not os.environ.get("GATE_TODAY"):
             now = datetime.datetime.combine(datetime.date.fromisoformat(fixtures["fecha_referencia"]),
                                             datetime.time(), datetime.timezone.utc)
-        rows += evaluate_code_scanning(fixtures.get("code_scanning") or [], policy)
+        code_exceptions = load_code_exceptions(policy, now.date(), notes)
+        rows += evaluate_code_scanning(fixtures.get("code_scanning") or [], policy, code_exceptions, now.date())
         rows += evaluate_secret_scanning(fixtures.get("secret_scanning") or [], policy, now)
         notes.append(f"🧪 **Modo simulación**: descartes de ejemplo de `{fixtures_path}` "
                      f"(fecha de referencia {now.date()}); no se consultó la API.")
     else:
+        code_exceptions = load_code_exceptions(policy, now.date(), notes)
         status, cs_alerts = fetch_all(f"/repos/{repo}/code-scanning/alerts?state=dismissed&per_page=100", token)
         if status == 200:
-            rows += evaluate_code_scanning(cs_alerts, policy)
+            rows += evaluate_code_scanning(cs_alerts, policy, code_exceptions, now.date())
         else:
             notes.append(f"⚠️ Code scanning no disponible ({status}).")
 
