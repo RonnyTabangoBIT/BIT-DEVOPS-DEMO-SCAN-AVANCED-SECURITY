@@ -15,7 +15,6 @@
 # Control de excepciones y gate de severidad mínima: aprobador de seguridad
 /.github/security/excepciones.yml         @RonnyTabangoBIT
 /.github/security/excepciones-codigo.yml  @RonnyTabangoBIT
-/.github/security/politica-descartes.yml  @RonnyTabangoBIT
 /.github/scripts/severity_gate.py         @RonnyTabangoBIT
 /.github/scripts/code_scanning_gate.py    @RonnyTabangoBIT
 /demo/dependabot-severidad-minima/        @RonnyTabangoBIT

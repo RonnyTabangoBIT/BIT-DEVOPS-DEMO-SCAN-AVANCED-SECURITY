@@ -35,19 +35,16 @@ Estos ajustes no se pueden versionar en el repositorio y deben hacerse desde la 
 3. **Ruleset sobre `main`** (Settings → Rules → Rulesets): exigir los checks `Dependabot severidad mínima`,
    `Code scanning severidad mínima`, `Tests (scripts de seguridad)`, `Dependency Review`, `CodeQL (python)`,
    `CodeQL (actions)`, `Tests (codeql-code-scanning)` y `Tests (copilot-autofix)`,
-   la regla *Require code scanning results*, **1 aprobación** y ☑ **Require review from Code Owners**.
+   **1 aprobación** y ☑ **Require review from Code Owners**. No se usa *Require code scanning results*: en la versión
+   mínima, el gate de code scanning y su archivo de excepciones son el único criterio para los hallazgos de código.
 4. **Aprobación desde Actions** (Settings → Actions → General → Workflow permissions):
    ☑ *Allow GitHub Actions to create and approve pull requests*, para el job `Aprobación automática`.
-
-5. **(Opcional) Secreto `SECURITY_AUDIT_TOKEN`** (Settings → Secrets and variables → Actions): fine-grained PAT con
-   *Secret scanning alerts: Read-only*, para que la **Auditoría de excepciones** incluya secret scanning.
 
 ## Workflows y ejecución con push a `main`
 
 | Workflow | Con push a `main` | Qué hace |
 |---|---|---|
 | [`advanced-security.yml`](../.github/workflows/advanced-security.yml) | ✅ Directo (también en PRs) | Tests, CodeQL, **gate de code scanning** ([`excepciones-codigo.yml`](../.github/security/excepciones-codigo.yml)), dependency review, **gate de dependencias** ([`excepciones.yml`](../.github/security/excepciones.yml)) y tests de los scripts |
-| [`security-exceptions-audit.yml`](../.github/workflows/security-exceptions-audit.yml) | ✅ Directo (también lunes y manual) | Valida los descartes de code scanning y secret scanning contra [`politica-descartes.yml`](../.github/security/politica-descartes.yml) y contra `excepciones-codigo.yml`; publica un registro CSV |
 | [`autofix-agent.yml`](../.github/workflows/autofix-agent.yml) | ✅ Al terminar `advanced-security.yml` en `main` (también manual) | Verifica los requisitos de Copilot Autofix y genera autofix por API para las alertas de CodeQL; de forma manual puede abrir un PR de remediación |
 
 ### Excepciones de code scanning
@@ -55,8 +52,8 @@ Estos ajustes no se pueden versionar en el repositorio y deben hacerse desde la 
 Funcionan igual que las de librerías: se registran por PR en [`excepciones-codigo.yml`](../.github/security/excepciones-codigo.yml)
 (protegido por CODEOWNERS) por **regla de CodeQL + ruta**, con justificación, aprobador y vencimiento. El job
 `Code scanning severidad mínima` aplica, en orden, las excepciones vigentes, las reglas por ruta (`demo/**` tiene su propio
-presupuesto) y el umbral global (`MAX_*`). Ver la sección 5.7 de
-[`INVESTIGACION-ADVANCED-SECURITY.md`](../INVESTIGACION-ADVANCED-SECURITY.md).
+presupuesto) y el umbral global (`MAX_*`). No hay que descartar alertas en la interfaz de GitHub: el archivo es la única
+forma de aceptar un hallazgo. Ver la sección 5 de [`INVESTIGACION-ADVANCED-SECURITY.md`](../INVESTIGACION-ADVANCED-SECURITY.md).
 
 ## Aprobadores (CODEOWNERS)
 
