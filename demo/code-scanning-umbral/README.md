@@ -1,41 +1,38 @@
-# Code scanning – superar el umbral (pipeline en rojo)
+# Code scanning – superar el umbral y corregirlo
 
-[`app_umbral.py`](app_umbral.py) contiene hallazgos **intencionales** que **no tienen excepción** en
-[`excepciones-codigo.yml`](../../.github/security/excepciones-codigo.yml). Sirve para mostrar que el gate
-**Code scanning severidad mínima** bloquea el merge cuando se supera el umbral.
+Esta carpeta muestra los dos lados del control de code scanning:
+
+| Rama | Estado de [`app_umbral.py`](app_umbral.py) | Resultado del pipeline |
+|---|---|---|
+| Flujo en **rojo** (`feature/demo-app-advanced-security-serveral-minimal`) | Hallazgos intencionales **sin excepción** | ❌ El gate y el check *Code scanning results* fallan |
+| Flujo en **verde** (esta rama) | Los mismos endpoints **corregidos** | ✅ Todo en verde |
+
+## Flujo en rojo: hallazgos que superan el umbral
 
 | Ruta | Regla de CodeQL | Severidad |
 |---|---|---|
 | `GET /calc` | `py/code-injection` (`eval`) | critical |
 | `GET /dns` | `py/command-line-injection` (`shell=True`) | critical |
 | `POST /session` | `py/unsafe-deserialization` (`pickle.loads`) | critical |
+| `POST /session` | `py/reflective-xss` (devuelve el objeto como texto) | high |
 | `GET /orders` | `py/sql-injection` | high |
 
-## Resultado esperado
+Fallan **dos** controles distintos:
 
-La carpeta está dentro de `demo/**`, así que sus hallazgos cuentan contra la regla `REG-COD-001`
-(`max: { critical: 2, high: 5, medium: 3 }`):
+1. **Code scanning severidad mínima** (nuestro gate): la carpeta está en `demo/**` y cuenta contra `REG-COD-001`
+   (`max: { critical: 2, ... }`), que queda en **5 de 2 críticas**.
+2. **Code scanning results / CodeQL** (check automático de GitHub): falla con cualquier alerta **nueva** de severidad
+   alta o crítica que introduzca el PR. **No lee `excepciones-codigo.yml`**, así que las excepciones no lo ponen en verde.
 
-| Severidad | Antes | Con esta carpeta | Permitidas | Estado |
-|---|---:|---:|---:|---|
-| critical | 2 | **5** | 2 | ❌ Supera el umbral |
-| high | 2 | 3 | 5 | ✅ |
+## Flujo en verde: corrección
 
-El job termina con *"❌ El gate falla (regla REG-COD-001 (critical))"*, marca cada hallazgo en la línea del código
-(`::error`) y el ruleset de `main` impide el merge.
+| Ruta | Corrección |
+|---|---|
+| `GET /calc` | Evalúa solo números y `+ - * /` con `ast`, sin `eval` |
+| `GET /dns` | Valida el host y lo resuelve con `socket.gethostbyname`, sin ejecutar comandos |
+| `POST /session` | `json.loads` en lugar de `pickle`, y respuesta con `jsonify` |
+| `GET /orders` | Consulta parametrizada (`?`) y respuesta con `jsonify` |
 
-## Cómo volver a verde
-
-Elegir una opción (una excepción no alcanza para las críticas: la política no permite exceptuar hallazgos `critical`):
-
-1. **Corregir el código**, por ejemplo aplicando las sugerencias de Copilot Autofix.
-2. **Borrar esta carpeta.**
-3. **Darle un cupo propio a la carpeta y exceptuar lo que se pueda** en
-   [`excepciones-codigo.yml`](../../.github/security/excepciones-codigo.yml). Es lo que hace la rama del **flujo en verde**:
-
-   | Entrada | Qué cubre | Resultado |
-   |---|---|---|
-   | `REG-COD-003` (regla por ruta, antes de `REG-COD-001`) | `demo/code-scanning-umbral/**`: hasta 3 critical y 1 high | Las 3 críticas quedan dentro del cupo (3 de 3) |
-   | `EXC-COD-2026-005` (excepción) | `py/sql-injection` (high) en `app_umbral.py` | La alta queda exceptuada |
-
-   Con eso `REG-COD-001` vuelve a 2 de 2 críticas y el job pasa en verde.
+Con el código corregido CodeQL no genera alertas nuevas, el gate queda dentro del umbral sin excepciones y el check de
+GitHub pasa. **Corregir es la única forma de dejar en verde ambos controles**: un cupo o una excepción solo satisfacen
+nuestro gate, y las críticas no se pueden exceptuar.

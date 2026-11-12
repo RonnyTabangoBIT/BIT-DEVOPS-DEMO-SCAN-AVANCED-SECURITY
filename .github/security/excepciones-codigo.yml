@@ -69,17 +69,6 @@ excepciones:
     aprobado_por: "@RonnyTabangoBIT"
     vence: 2026-10-31
 
-  # Flujo en verde: la inyección SQL (high) de demo/code-scanning-umbral se acepta con una excepción.
-  # Las 3 críticas de esa carpeta NO se pueden exceptuar (política): se cubren con el cupo REG-COD-003.
-  - id: EXC-COD-2026-005
-    regla: py/sql-injection
-    ruta: demo/code-scanning-umbral/app_umbral.py
-    severidades: [high]
-    justificacion: "Demo flujo en verde: endpoint de ejemplo sin base de datos real; se corrige con consultas parametrizadas."
-    solicitado_por: "@RonnyTabangoBIT"
-    aprobado_por: "@RonnyTabangoBIT"
-    vence: 2027-01-31
-
 # -------------------------------------------------------------------------------------
 # REGLAS POR RUTA
 # Campos obligatorios: id, ruta, max {severidad: cantidad}, justificacion. Opcional: regla (por defecto "*").
@@ -87,13 +76,6 @@ excepciones:
 # Si varias reglas coinciden, se usa la primera.
 # -------------------------------------------------------------------------------------
 reglas_por_ruta:
-  # Flujo en verde: cupo propio para demo/code-scanning-umbral (3 críticas a propósito).
-  # Va ANTES de REG-COD-001 porque se aplica la primera regla que coincide.
-  - id: REG-COD-003
-    ruta: demo/code-scanning-umbral/**
-    max: { critical: 3, high: 1 }
-    justificacion: "Demo flujo en verde: hallazgos intencionales para mostrar el control de umbral; no se despliega."
-
   # Apps de demo INTENCIONALMENTE vulnerables: presupuesto propio de hallazgos.
   - id: REG-COD-001
     ruta: demo/**
