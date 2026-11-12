@@ -877,6 +877,47 @@ El workflow [`security-exceptions-audit.yml`](.github/workflows/security-excepti
 
 La lógica de validación tiene pruebas unitarias en [`test_security_scripts.py`](.github/scripts/tests/test_security_scripts.py): descartes válidos e inválidos, ID de excepción, aprobadores, aprobación delegada, secretos revocados, `used_in_tests` y plazo de bypass.
 
+#### 5.6.1 Casos de error simulados
+
+Para validar la política sin descartar alertas reales, el workflow tiene un modo de prueba (*Run workflow → simulacion*):
+
+| Opción | Qué audita | Resultado esperado |
+|---|---|---|
+| `no` | Alertas reales de la API | Según los descartes hechos en GitHub |
+| `descartes-con-errores` | [`descartes-simulados.json`](.github/security/pruebas/descartes-simulados.json) con la política del repo | ❌ 8 descartes no cumplen, 5 cumplen |
+| `politica-invalida` | [`politica-invalida.yml`](.github/security/pruebas/politica-invalida.yml) | ❌ 9 errores de configuración; no se evalúa ningún descarte |
+
+**Descartes simulados** (fecha de referencia 2026-11-12):
+
+| # | Tipo | Caso | Resultado | Regla que se valida |
+|---|---|---|---|---|
+| 101 | Code scanning | *Won't fix* con `EXC-2026-010` y justificación | ✅ | — |
+| 102 | Code scanning | *False positive* con justificación técnica | ✅ | No requiere ID |
+| 103 | Code scanning | *Won't fix* con comentario `no aplica` | ❌ | Justificación mínima + ID de excepción |
+| 104 | Code scanning | *Won't fix* con justificación larga sin ID | ❌ | ID de excepción |
+| 105 | Code scanning | *False positive* descartado por `desarrollador-externo` | ❌ | Lista de aprobadores |
+| 106 | Code scanning | *Mitigated* sin ID | ❌ | ID de excepción |
+| 107 | Code scanning | *Used in tests* con comentario `test` | ❌ | Justificación mínima |
+| 201 | Secret scanning | *Revoked* por un usuario externo | ✅ | Revocar es remediación, no excepción |
+| 202 | Secret scanning | *Used in tests* con `EXC-2026-011` | ✅ | — |
+| 203 | Secret scanning | *Used in tests* sin ID | ❌ | ID de excepción |
+| 204 | Secret scanning | *Won't fix* sin comentario, por un usuario externo | ❌ | Justificación + ID + aprobadores |
+| 205 | Secret scanning | Bypass de push protection abierto 22 días | ❌ | Plazo máximo tras el bypass (7 días) |
+| 206 | Secret scanning | Bypass de push protection de hace 2 días | ✅ | Dentro del plazo |
+
+**Política inválida**: la auditoría también valida el propio archivo de política y falla si tiene errores, sin evaluar ningún descarte con ella. Detecta motivos que no existen en la API (`accepted risk`, `wontfix`), motivos con ID obligatorio que no están permitidos, `comentario_minimo` negativo, `aprobadores` que no es lista, severidades inválidas, días que no son enteros y una expresión regular de ID inválida.
+
+Cada caso declara en el JSON su resultado esperado (`_esperado`), y las pruebas unitarias verifican que la auditoría dé exactamente ese resultado. Así, si alguien cambia la política o el script de forma que un caso deja de detectarse, el job **Tests (scripts de seguridad)** falla.
+
+Para probarlo en local, desde la raíz del repo:
+
+```bash
+pip install pyyaml
+AUDIT_FIXTURES=.github/security/pruebas/descartes-simulados.json python .github/scripts/security_exceptions_audit.py
+POLICY_FILE=.github/security/pruebas/politica-invalida.yml AUDIT_FIXTURES=.github/security/pruebas/descartes-simulados.json \
+  python .github/scripts/security_exceptions_audit.py
+```
+
 > En un repo personal no existen delegated dismissal ni delegated bypass: cualquier colaborador puede descartar. La auditoría es el **control detectivo** que compensa la falta del control preventivo. En una organización, se activan ambos mecanismos y se pone `requiere_aprobacion_delegada: true`.
 
 ---

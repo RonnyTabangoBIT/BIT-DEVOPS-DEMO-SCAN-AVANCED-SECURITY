@@ -11,6 +11,7 @@ Variables de entorno:
   POLICY_FILE           por defecto: .github/security/politica-descartes.yml
   AUDIT_CSV             archivo CSV de salida (registro de trazabilidad)   por defecto: registro-excepciones.csv
   GATE_TODAY            fecha de evaluación AAAA-MM-DD (opcional, para pruebas)
+  AUDIT_FIXTURES        opcional: JSON con descartes simulados; si se indica, NO se llama a la API (modo simulación)
   GITHUB_STEP_SUMMARY   archivo de resumen de Actions (si no existe, se imprime en stdout)
 """
 import csv
@@ -26,6 +27,45 @@ from pathlib import Path
 import yaml
 
 API = "https://api.github.com"
+# Valores que acepta la API de GitHub (OpenAPI: code-scanning-alert-dismissed-reason / secret-scanning-alert-resolution).
+CS_REASONS = {"false positive", "won't fix", "used in tests", "mitigated"}
+SS_RESOLUTIONS = {"false_positive", "wont_fix", "revoked", "used_in_tests"}
+SEVERITIES = {"critical", "high", "medium", "low", "error", "warning", "note"}
+
+
+def validate_policy(policy):
+    """Errores de configuración del archivo de política (motivos inexistentes, valores inválidos)."""
+    errors = []
+    try:
+        re.compile(policy.get("formato_id_excepcion", r"EXC-\d{4}-\d{3}"))
+    except re.error as exc:
+        errors.append(f"`formato_id_excepcion` no es una expresión regular válida: {exc}")
+    for section, key, valid in (("code_scanning", "motivos_permitidos", CS_REASONS),
+                                ("secret_scanning", "resoluciones_permitidas", SS_RESOLUTIONS)):
+        cfg = policy.get(section)
+        if not isinstance(cfg, dict):
+            errors.append(f"falta la sección `{section}`")
+            continue
+        for k in (key, "requiere_id_excepcion"):
+            unknown = sorted(set(cfg.get(k) or []) - valid)
+            if unknown:
+                errors.append(f"`{section}.{k}` tiene valores que no existen en la API: {unknown} (válidos: {sorted(valid)})")
+        not_allowed = sorted(set(cfg.get("requiere_id_excepcion") or []) - set(cfg.get(key) or valid))
+        if not_allowed:
+            errors.append(f"`{section}.requiere_id_excepcion` incluye motivos no permitidos en `{key}`: {not_allowed}")
+        value = cfg.get("comentario_minimo", 0)
+        if not isinstance(value, int) or value < 0:
+            errors.append(f"`{section}.comentario_minimo` debe ser un entero >= 0 (actual: {value!r})")
+        if not isinstance(cfg.get("aprobadores", []), list):
+            errors.append(f"`{section}.aprobadores` debe ser una lista de usuarios")
+    cs = policy.get("code_scanning") or {}
+    unknown = sorted(set(cs.get("severidades_con_aprobacion") or []) - SEVERITIES)
+    if unknown:
+        errors.append(f"`code_scanning.severidades_con_aprobacion` tiene severidades inválidas: {unknown}")
+    days = (policy.get("secret_scanning") or {}).get("dias_maximos_abierta_tras_bypass", 7)
+    if not isinstance(days, int) or days < 0:
+        errors.append(f"`secret_scanning.dias_maximos_abierta_tras_bypass` debe ser un entero >= 0 (actual: {days!r})")
+    return errors
 
 
 # ------------------------------------------------------------------------------- lógica pura (testeable)
@@ -142,13 +182,31 @@ def main():
     ) if os.environ.get("GATE_TODAY") else datetime.datetime.now(datetime.timezone.utc)
 
     notes, rows = [], []
-    status, cs_alerts = fetch_all(f"/repos/{repo}/code-scanning/alerts?state=dismissed&per_page=100", token)
-    if status == 200:
-        rows += evaluate_code_scanning(cs_alerts, policy)
+    policy_errors = validate_policy(policy)
+    fixtures_path = os.environ.get("AUDIT_FIXTURES", "")
+    if policy_errors:
+        # Con una política inválida no se puede juzgar ningún descarte: se reportan solo sus errores y el job falla.
+        notes.append("⛔ No se evaluaron los descartes porque el archivo de política es inválido.")
+    elif fixtures_path:
+        # Modo simulación: descartes de ejemplo en lugar de la API (para validar la política sin tocar alertas reales).
+        fixtures = json.loads(Path(fixtures_path).read_text(encoding="utf-8"))
+        if fixtures.get("fecha_referencia") and not os.environ.get("GATE_TODAY"):
+            now = datetime.datetime.combine(datetime.date.fromisoformat(fixtures["fecha_referencia"]),
+                                            datetime.time(), datetime.timezone.utc)
+        rows += evaluate_code_scanning(fixtures.get("code_scanning") or [], policy)
+        rows += evaluate_secret_scanning(fixtures.get("secret_scanning") or [], policy, now)
+        notes.append(f"🧪 **Modo simulación**: descartes de ejemplo de `{fixtures_path}` "
+                     f"(fecha de referencia {now.date()}); no se consultó la API.")
     else:
-        notes.append(f"⚠️ Code scanning no disponible ({status}).")
+        status, cs_alerts = fetch_all(f"/repos/{repo}/code-scanning/alerts?state=dismissed&per_page=100", token)
+        if status == 200:
+            rows += evaluate_code_scanning(cs_alerts, policy)
+        else:
+            notes.append(f"⚠️ Code scanning no disponible ({status}).")
 
-    if audit_token:
+    if policy_errors or fixtures_path:
+        pass  # política inválida, o en simulación secret scanning viene del archivo de ejemplo
+    elif audit_token:
         status, ss_alerts = fetch_all(f"/repos/{repo}/secret-scanning/alerts?per_page=100", audit_token)
         if status == 200:
             rows += evaluate_secret_scanning(ss_alerts, policy, now)
@@ -174,6 +232,8 @@ def main():
            f"- **Registro de trazabilidad:** artifact `{Path(csv_path).name}`."]
     out += [f"- {n}" for n in notes]
     out.append("")
+    if policy_errors:
+        out += ["### ❌ Errores en el archivo de política", ""] + [f"- {e}" for e in policy_errors] + [""]
     if rows:
         out += ["| Tipo | Alerta | Hallazgo | Severidad | Motivo | Justificación | Por | Fecha | Aprobado por | Cumple |",
                 "|---|---|---|---|---|---|---|---|---|---|"]
@@ -185,8 +245,12 @@ def main():
         out.append("")
     else:
         out.append("No hay alertas descartadas ni resueltas para auditar.")
-    out.append("**Resultado: ❌ Hay excepciones que no cumplen la política.**" if bad
-               else "**Resultado: ✅ Todas las excepciones cumplen la política.**")
+    if policy_errors:
+        out.append("**Resultado: ❌ El archivo de política es inválido.**")
+    elif bad:
+        out.append("**Resultado: ❌ Hay excepciones que no cumplen la política.**")
+    else:
+        out.append("**Resultado: ✅ Todas las excepciones cumplen la política.**")
 
     text = "\n".join(out)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -195,9 +259,12 @@ def main():
             fh.write(text + "\n")
     else:
         print(text)
+    policy_file = os.environ.get("POLICY_FILE", ".github/security/politica-descartes.yml")
+    for e in policy_errors:
+        print(f"::error file={policy_file},title=Política de descartes inválida::{e}")
     for r in bad:
         print(f"::error title=Excepción {r['tipo']} #{r['alerta']}::{r['problemas']}")
-    if bad:
+    if bad or policy_errors:
         sys.exit(1)
 
 

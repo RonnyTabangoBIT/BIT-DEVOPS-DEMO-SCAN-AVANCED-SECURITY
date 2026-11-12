@@ -1,5 +1,6 @@
 """Pruebas de la lógica del agente de Autofix y de la auditoría de excepciones (sin llamar a la API)."""
 import datetime
+import json
 import sys
 from pathlib import Path
 
@@ -138,3 +139,82 @@ def test_secret_bypass_abierto_fuera_de_plazo():
 
 def test_secret_abierto_sin_bypass_no_es_excepcion():
     assert audit.evaluate_secret_scanning([secret(6, state="open")], POLICY, NOW) == []
+
+
+# ------------------------------------------------------------------------------- Casos simulados (errores de la política)
+
+SECURITY_DIR = Path(__file__).resolve().parents[2] / "security"
+FIXTURES = json.loads((SECURITY_DIR / "pruebas" / "descartes-simulados.json").read_text(encoding="utf-8"))
+FIXTURE_NOW = datetime.datetime.fromisoformat(FIXTURES["fecha_referencia"]).replace(tzinfo=datetime.timezone.utc)
+CASES = [("code_scanning", a) for a in FIXTURES["code_scanning"]] + [("secret_scanning", a) for a in FIXTURES["secret_scanning"]]
+
+
+@pytest.mark.parametrize("tipo, alerta", CASES, ids=[f"#{a['number']} {a['_caso']}" for _, a in CASES])
+def test_descartes_simulados_dan_el_resultado_esperado(tipo, alerta):
+    if tipo == "code_scanning":
+        rows = audit.evaluate_code_scanning([alerta], POLICY)
+    else:
+        rows = audit.evaluate_secret_scanning([alerta], POLICY, FIXTURE_NOW)
+    assert len(rows) == 1
+    esperado = alerta["_esperado"]
+    assert rows[0]["cumple"] is esperado["cumple"], rows[0]["problemas"]
+    for problema in esperado.get("problemas", []):
+        assert problema in rows[0]["problemas"]
+
+
+def test_simulacion_tiene_casos_validos_y_con_error():
+    resultados = [a["_esperado"]["cumple"] for _, a in CASES]
+    assert resultados.count(True) >= 4 and resultados.count(False) >= 7
+
+
+def test_main_en_modo_simulacion_falla_y_genera_registro(tmp_path, monkeypatch):
+    csv_path = tmp_path / "registro.csv"
+    monkeypatch.chdir(Path(__file__).resolve().parents[3])
+    monkeypatch.setenv("AUDIT_FIXTURES", str(SECURITY_DIR / "pruebas" / "descartes-simulados.json"))
+    monkeypatch.setenv("AUDIT_CSV", str(csv_path))
+    monkeypatch.setenv("GITHUB_REPOSITORY", "RonnyTabangoBIT/demo")
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    monkeypatch.delenv("GATE_TODAY", raising=False)
+    with pytest.raises(SystemExit) as exc:
+        audit.main()
+    assert exc.value.code == 1
+    lines = csv_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 1 + len(CASES)          # encabezado + un registro por descarte
+
+
+# ------------------------------------------------------------------------------- Validación del archivo de política
+
+def test_politica_del_repo_es_valida():
+    assert audit.validate_policy(POLICY) == []
+
+
+def test_politica_invalida_detecta_cada_error():
+    invalid = yaml.safe_load((SECURITY_DIR / "pruebas" / "politica-invalida.yml").read_text(encoding="utf-8"))
+    errores = "\n".join(audit.validate_policy(invalid))
+    for esperado in [
+        "`formato_id_excepcion` no es una expresión regular válida",
+        "`code_scanning.motivos_permitidos` tiene valores que no existen en la API: ['accepted risk']",
+        "`code_scanning.comentario_minimo` debe ser un entero >= 0",
+        "`code_scanning.requiere_id_excepcion` incluye motivos no permitidos",
+        "`code_scanning.aprobadores` debe ser una lista",
+        "`code_scanning.severidades_con_aprobacion` tiene severidades inválidas: ['urgent']",
+        "`secret_scanning.resoluciones_permitidas` tiene valores que no existen en la API: ['wontfix']",
+        "`secret_scanning.requiere_id_excepcion` incluye motivos no permitidos",
+        "`secret_scanning.dias_maximos_abierta_tras_bypass` debe ser un entero",
+    ]:
+        assert esperado in errores, f"no se detectó: {esperado}\n{errores}"
+
+
+def test_main_con_politica_invalida_no_evalua_y_falla(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(Path(__file__).resolve().parents[3])
+    monkeypatch.setenv("POLICY_FILE", str(SECURITY_DIR / "pruebas" / "politica-invalida.yml"))
+    monkeypatch.setenv("AUDIT_FIXTURES", str(SECURITY_DIR / "pruebas" / "descartes-simulados.json"))
+    monkeypatch.setenv("AUDIT_CSV", str(tmp_path / "registro.csv"))
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    with pytest.raises(SystemExit) as exc:
+        audit.main()
+    salida = capsys.readouterr().out
+    assert exc.value.code == 1
+    assert "El archivo de política es inválido" in salida
+    assert "No se evaluaron los descartes" in salida
+    assert "Todas las excepciones cumplen" not in salida
