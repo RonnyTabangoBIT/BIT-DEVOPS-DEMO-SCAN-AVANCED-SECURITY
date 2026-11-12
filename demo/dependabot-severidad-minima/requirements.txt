@@ -1,4 +1,7 @@
-# Caso BASE: vulnerabilidades DENTRO del umbral permitido (MAX_MEDIUM=15).
-#   requests==2.31.0 -> 3 MEDIUM (CVE-2024-35195, CVE-2024-47081, ...) => dentro del umbral
-# Si se elimina la carpeta errores/, el job `dependabot-severity-gate` pasa en verde.
+# Dependencias INTENCIONALMENTE vulnerables, pero DENTRO del umbral permitido
+# (MAX_CRITICAL=0, MAX_HIGH=2, MAX_MEDIUM=15) => el job `dependabot-severity-gate` pasa en verde.
+#   jinja2==2.10     -> 1 HIGH (CVE-2019-10906) + 5 MEDIUM
+#   requests==2.31.0 -> 3 MEDIUM (CVE-2024-35195, CVE-2024-47081, ...)
+# Total: 0 critical (0 permitidas), 1 high (2 permitidas), 8 medium (15 permitidas).
+jinja2==2.10
 requests==2.31.0

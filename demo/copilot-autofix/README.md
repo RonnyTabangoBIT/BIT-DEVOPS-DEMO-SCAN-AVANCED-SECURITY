@@ -9,19 +9,10 @@
 | `POST /register` | `py/weak-sensitive-data-hashing` (`md5`) | KDF con salt (`hashlib.pbkdf2_hmac`, argon2, etc.) |
 | `GET /login` | `py/url-redirection` | Validar que `next` sea relativa / del mismo host |
 
-### Carpeta [`errores/`](errores/)
-
-Errores adicionales, uno por archivo, pensados para que Autofix genere parches pequeños y verificables:
-
-| Archivo | Regla CodeQL | Corrección esperada de Autofix |
-|---------|--------------|--------------------------------|
-| [`sql_injection.py`](errores/sql_injection.py) | `py/sql-injection` | Consulta parametrizada (`?`) |
-| [`command_injection.py`](errores/command_injection.py) | `py/command-line-injection` | Argumentos en lista, sin `shell=True` |
-| [`path_traversal.py`](errores/path_traversal.py) | `py/path-injection` | Normalizar la ruta y validar que quede en `files/` |
-| [`reflected_xss.py`](errores/reflected_xss.py) | `py/reflective-xss`, `py/flask-debug` | `markupsafe.escape` y `debug=False` |
-| [`stack_trace.py`](errores/stack_trace.py) | `py/stack-trace-exposure` | Registrar el error y devolver un mensaje genérico |
-
-[`tests/test_errores.py`](tests/test_errores.py) valida cada ruta con entradas benignas.
+> Los errores adicionales para probar Autofix (carpeta `errores/`: SQL injection, command injection,
+> path traversal, XSS y stack trace) se prueban en un PR dedicado desde la rama
+> `feature/demo-app-advanced-security`, para no bloquear el merge de otros cambios con la regla
+> *Require code scanning results*.
 
 > Autofix solo comenta en el PR las alertas **nuevas** en líneas modificadas por ese PR. Si un archivo ya está
 > en `main` con la alerta, use la Opción B (desde la alerta) o modifique la línea vulnerable en el PR.

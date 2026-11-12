@@ -3,17 +3,12 @@
 Demuestra cómo definir **cuántas vulnerabilidades se permiten por severidad** (críticas, altas, medias, bajas)
 y **fallar el pipeline cuando alguna severidad supera su umbral**.
 
-## Estructura
+## Estado actual: vulnerable, pero dentro del umbral ✅
 
 | Manifiesto | Paquete | Vulnerabilidades |
 |------------|---------|------------------|
-| [`requirements.txt`](requirements.txt) (base) | `requests==2.31.0` | 3 medium |
-| [`errores/requirements.txt`](errores/requirements.txt) | `pyyaml==5.3` | 2 critical |
-| [`errores/requirements.txt`](errores/requirements.txt) | `jinja2==2.10` | 1 high + 5 medium |
-| [`errores/Pipfile`](errores/Pipfile) | `urllib3==1.26.4` | 8 high + 3 medium |
-
-- La **base** queda dentro de todos los umbrales → el gate pasa ✅.
-- La carpeta **`errores/`** agrega críticas y altas por encima de lo permitido → el gate falla ❌.
+| [`requirements.txt`](requirements.txt) | `jinja2==2.10` | 1 high + 5 medium |
+| [`requirements.txt`](requirements.txt) | `requests==2.31.0` | 3 medium |
 
 ## Piezas del control
 
@@ -32,21 +27,22 @@ y **fallar el pipeline cuando alguna severidad supera su umbral**.
    En **Actions → Summary** publica, por severidad, las **encontradas**, las **permitidas**, el **exceso** y el
    estado, además del total y el detalle por paquete. Deja anotaciones `::error` sobre la línea del manifiesto.
    Funciona en cualquier rama o PR y solo usa `GITHUB_TOKEN`.
-2. **`.github/dependabot.yml`** – entrada dedicada a este directorio y a `errores/` con `open-pull-requests-limit: 0`
+2. **`.github/dependabot.yml`** – entrada dedicada a este directorio con `open-pull-requests-limit: 0`
    (sin PRs de versión, solo de seguridad) y el grupo `security-minimum-severity` para agrupar las correcciones.
 3. **Reglas de auto-triage de Dependabot** (configuración manual, ver [`demo/README.md`](../README.md)).
 
-## Resultado esperado (con `errores/`)
+## Resultado esperado
 
 | Severidad | Encontradas | Permitidas | Exceso | Estado |
 |---|---:|---:|---:|---|
-| Críticas (critical) | 2 | 0 | 2 | ❌ Supera el umbral |
-| Altas (high) | 9 | 2 | 7 | ❌ Supera el umbral |
-| Medias (medium) | 11 | 15 | 0 | ✅ Dentro del umbral |
+| Críticas (critical) | 0 | 0 | 0 | ✅ Dentro del umbral |
+| Altas (high) | 1 | 2 | 0 | ✅ Dentro del umbral |
+| Medias (medium) | 8 | 15 | 0 | ✅ Dentro del umbral |
 | Bajas (low) | 0 | sin límite | 0 | ✅ Dentro del umbral |
-| **Total** | **22** | | | ❌ |
+| **Total** | **9** | | | ✅ |
 
-Sin la carpeta `errores/` quedan solo 3 medias y el job pasa ✅.
+**Para ver el fallo**, agregue por ejemplo `pyyaml==5.3` (2 critical) o `urllib3==1.26.4` (8 high) a
+`requirements.txt`: el job falla porque supera `MAX_CRITICAL=0` o `MAX_HIGH=2`.
 
 > Los conteos dependen de la Advisory Database al momento de ejecutar y pueden crecer con nuevas advisories.
 

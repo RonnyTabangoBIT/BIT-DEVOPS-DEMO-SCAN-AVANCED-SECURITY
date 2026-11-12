@@ -12,9 +12,7 @@ updates:
   # El umbral de severidad se aplica con las reglas de auto-triage (Settings) y el job
   # `dependabot-severity-gate` del workflow (MAX_CRITICAL / MAX_HIGH / MAX_MEDIUM / MAX_LOW).
   - package-ecosystem: pip
-    directories:
-      - "/demo/dependabot-severidad-minima"
-      - "/demo/dependabot-severidad-minima/errores"
+    directory: "/demo/dependabot-severidad-minima"
     schedule:
       interval: daily
     open-pull-requests-limit: 0
