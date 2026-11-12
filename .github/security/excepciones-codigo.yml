@@ -2,6 +2,8 @@
 # Control de excepciones del gate "Code scanning severidad mínima" (.github/scripts/code_scanning_gate.py)
 # Mismo esquema que excepciones.yml (dependencias), pero para hallazgos de CodeQL.
 #
+# CÓMO AGREGAR UNA EXCEPCIÓN: ver .github/security/README.md (paso a paso, parámetros y errores frecuentes).
+#
 # Orden de evaluación de cada hallazgo:
 #   1. excepciones     -> si coincide con una excepción VIGENTE (regla + ruta), no cuenta.
 #   2. reglas_por_ruta -> si la ruta tiene regla, se evalúa contra su propio umbral.

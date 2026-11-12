@@ -55,6 +55,9 @@ Funcionan igual que las de librerías: se registran por PR en [`excepciones-codi
 presupuesto) y el umbral global (`MAX_*`). No hay que descartar alertas en la interfaz de GitHub: el archivo es la única
 forma de aceptar un hallazgo. Ver la sección 5 de [`INVESTIGACION-ADVANCED-SECURITY.md`](../INVESTIGACION-ADVANCED-SECURITY.md).
 
+> 📘 **Cómo agregar una excepción** (de librerías o de código): paso a paso, todos los parámetros (para qué sirven y qué
+> colocar) y errores frecuentes en [`.github/security/README.md`](../.github/security/README.md).
+
 ## Aprobadores (CODEOWNERS)
 
 [`.github/CODEOWNERS`](../.github/CODEOWNERS) define el aprobador de cada ruta. Al abrir un PR, GitHub lo asigna

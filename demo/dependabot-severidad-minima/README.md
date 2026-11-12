@@ -28,6 +28,9 @@ y clasifica cada vulnerabilidad en este orden:
 | `MAX_LOW` | `-1` | Bajas permitidas (vacío o `-1` = sin límite) |
 | `EXCEPTIONS_FILE` | `.github/security/excepciones.yml` | Excepciones y reglas por paquete |
 
+> 📘 **Cómo agregar una excepción**: paso a paso, todos los parámetros (para qué sirven y qué colocar) y errores
+> frecuentes en [`.github/security/README.md`](../../.github/security/README.md).
+
 ## Excepciones
 
 Una excepción acepta vulnerabilidades por **GHSA**, por **paquete**, por **rango de versiones** y/o por
