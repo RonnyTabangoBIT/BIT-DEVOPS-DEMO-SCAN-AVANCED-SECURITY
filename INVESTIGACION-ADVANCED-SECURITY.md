@@ -5,10 +5,11 @@ Este documento reúne lo investigado sobre:
 1. El uso de **GitHub Advanced Security (GHAS)**.
 2. Cómo **generar y publicar reportes en PDF** desde un **workflow centralizado**.
 3. Qué hace falta para tener un mecanismo de **excepción, exclusión o control mínimo** de vulnerabilidades de dependencias en GitHub Actions, y cómo funciona el **flujo del control de excepciones**.
-4. **Copilot Autofix**: cómo funciona, cómo se usa, qué alcance tiene y en qué casos sirve.
-5. **Gobierno del merge**: rulesets, CODEOWNERS (grupos de aprobadores) y aprobación automática para la demo.
+4. **Copilot Autofix**: cómo funciona, cómo se usa, qué alcance tiene, en qué casos sirve y cómo se remedia en lote con **security campaigns y el agente de Copilot**, con la lista de requisitos para implementarlo.
+5. **Excepciones de code scanning y secret scanning**: motivos de descarte, delegated dismissal y bypass, quién aprueba y cómo queda registrado.
+6. **Gobierno del merge**: rulesets, CODEOWNERS (grupos de aprobadores) y aprobación automática para la demo.
 
-> Las funcionalidades, licencias y precios de GitHub cambian seguido. Antes de tomar decisiones de compra o arquitectura, conviene revisar las [referencias](#6-referencias) oficiales.
+> Las funcionalidades, licencias y precios de GitHub cambian seguido. Antes de tomar decisiones de compra o arquitectura, conviene revisar las [referencias](#7-referencias) oficiales.
 
 ---
 
@@ -18,8 +19,9 @@ Este documento reúne lo investigado sobre:
 - [2. Reportes PDF desde un workflow centralizado](#2-reportes-pdf-desde-un-workflow-centralizado)
 - [3. Excepción, exclusión y control mínimo de vulnerabilidades de dependencias](#3-excepción-exclusión-y-control-mínimo-de-vulnerabilidades-de-dependencias)
 - [4. Copilot Autofix](#4-copilot-autofix)
-- [5. Gobierno del merge: rulesets, CODEOWNERS y aprobaciones](#5-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)
-- [6. Referencias](#6-referencias)
+- [5. Excepciones de code scanning y secret scanning](#5-excepciones-de-code-scanning-y-secret-scanning)
+- [6. Gobierno del merge: rulesets, CODEOWNERS y aprobaciones](#6-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)
+- [7. Referencias](#7-referencias)
 
 ---
 
@@ -68,9 +70,9 @@ GHAS es el conjunto de funciones de seguridad que GitHub integra en el repositor
 | **Rulesets: "Require status checks to pass"** | Bloquea el merge hasta que los jobs indicados (por ejemplo `Dependency Review` o `Dependabot severidad mínima`) terminen en *success* |
 | **Rulesets: "Require code scanning results"** | Bloquea el merge si el PR introduce alertas de code scanning por encima de un umbral (por ejemplo, `High or higher`) |
 | **Rulesets: "Require workflows to pass before merging"** | Obliga a ejecutar un workflow que vive en un **repositorio central** (por ejemplo, el de dependency review) en todos los repositorios elegidos, sin que cada equipo tenga que copiarlo. Es una regla de **ruleset de organización** |
-| **Rulesets: "Require a pull request" + CODEOWNERS** | Exige aprobaciones y, opcionalmente, la aprobación de los dueños de cada ruta (ver [sección 5](#5-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) |
+| **Rulesets: "Require a pull request" + CODEOWNERS** | Exige aprobaciones y, opcionalmente, la aprobación de los dueños de cada ruta (ver [sección 6](#6-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) |
 | **Políticas de Actions** | Lista de acciones permitidas y exigencia de fijar acciones por SHA, a nivel organización o enterprise |
-| **Delegated bypass / delegated alert dismissal** | Exige que un revisor apruebe antes de saltarse push protection o descartar alertas |
+| **Delegated bypass / delegated alert dismissal** | Exige que un revisor apruebe antes de saltarse push protection o descartar alertas (ver [sección 5](#5-excepciones-de-code-scanning-y-secret-scanning)) |
 
 ### 1.5 Relación con este repositorio demo
 
@@ -81,9 +83,12 @@ GHAS es el conjunto de funciones de seguridad que GitHub integra en el repositor
 | Dependabot | ✅ `.github/dependabot.yml` (pip + github-actions) |
 | Control mínimo por severidad | ✅ Job `dependabot-severity-gate` con umbrales `MAX_CRITICAL`, `MAX_HIGH`, `MAX_MEDIUM`, `MAX_LOW` (ver [3.5](#35-implementación-en-este-repositorio-umbral-excepciones-y-reglas-por-versión)) |
 | Control de excepciones y reglas por versión | ✅ `.github/security/excepciones.yml`: excepciones por GHSA, paquete, versión y severidad con vencimiento, y umbrales por paquete/versión (ver [3.5](#35-implementación-en-este-repositorio-umbral-excepciones-y-reglas-por-versión)) |
-| CODEOWNERS | ✅ `.github/CODEOWNERS`: aprobador por ruta; protege excepciones, workflow y umbrales (ver [5.4](#54-archivo-codeowners)) |
+| CODEOWNERS | ✅ `.github/CODEOWNERS`: aprobador por ruta; protege excepciones, workflow y umbrales (ver [6.4](#64-archivo-codeowners)) |
 | Copilot Autofix | ✅ `demo/copilot-autofix/` (errores adicionales en un PR dedicado) |
-| Ruleset sobre `main` + aprobación | ✅ Status checks obligatorios + aprobación automática para la demo (ver [sección 5](#5-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) |
+| Autofix con agente (remediación en lote) | ✅ Workflow **Autofix Agent**: requisitos, autofix por API y PR de remediación (ver [4.9](#49-prueba-en-este-repositorio-workflow-autofix-agent)) |
+| Excepciones de code scanning y secret scanning | ✅ Workflow **Auditoría de excepciones** con `politica-descartes.yml` y registro CSV (ver [5.6](#56-prueba-en-este-repositorio-workflow-auditoría-de-excepciones)) |
+| Delegated dismissal / delegated bypass / security campaigns | ⚙️ Documentado; requiere organización (ver [4.7](#47-autofix-con-agente-security-campaigns-y-agente-de-código-de-copilot) y [5.3](#53-quién-aprueba-delegated-alert-dismissal-y-delegated-bypass)) |
+| Ruleset sobre `main` + aprobación | ✅ Status checks obligatorios + aprobación automática para la demo (ver [sección 6](#6-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) |
 | Secret scanning / Push protection | ⚙️ Se habilita en Settings, no requiere workflow |
 | Reportes PDF centralizados | ❌ Pendiente (ver sección 2) |
 | Repositorio central de excepciones (varios repos) | ❌ Pendiente; diseño en [3.3](#33-diseño-recomendado) y flujo en [3.4](#34-flujo-del-control-de-excepciones) |
@@ -659,7 +664,8 @@ Además:
 |---|---|
 | **En Pull Requests** | Cuando CodeQL encuentra una alerta nueva en un PR, Autofix publica un comentario con la explicación y una **sugerencia de código**. El desarrollador puede *Commit suggestion*, editarla o descartarla |
 | **Alertas existentes en la rama por defecto** | En *Security → Code scanning → alerta → **Generate fix***. Se revisa la propuesta y se elige **Create PR with fix** (o se abre en un Codespace para ajustarla) |
-| **Security campaigns** | Se crea una campaña sobre un conjunto de alertas de la organización y Autofix genera correcciones en lote, que se pueden asignar a los responsables o al **agente de código de Copilot** para que abra los PRs |
+| **Security campaigns** | Se crea una campaña sobre un conjunto de alertas de la organización y Autofix genera correcciones en lote, que se pueden asignar a los responsables o al **agente de código de Copilot** para que abra los PRs (ver [4.7](#47-autofix-con-agente-security-campaigns-y-agente-de-código-de-copilot)) |
+| **API REST** | `POST /repos/{o}/{r}/code-scanning/alerts/{n}/autofix` genera el fix, `GET` consulta su estado y `POST .../autofix/commits` lo commitea en una rama (ver [4.9](#49-prueba-en-este-repositorio-workflow-autofix-agent)) |
 | **Herramientas de terceros** | Hay soporte (en algunos casos en preview) para alertas de herramientas externas como ESLint. Se habilita aparte |
 
 Configuración:
@@ -704,17 +710,180 @@ Configuración:
 
 ### 4.6 Buenas prácticas
 
-- Tratar Autofix como un **asistente**, no como una corrección automática: exigir revisión con CODEOWNERS (ver [sección 5](#5-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) y que los tests pasen.
+- Tratar Autofix como un **asistente**, no como una corrección automática: exigir revisión con CODEOWNERS (ver [sección 6](#6-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) y que los tests pasen.
 - Combinarlo con el ruleset *Require code scanning results*, para que el PR no se pueda mergear hasta que la alerta desaparezca.
 - Probar Autofix en **PRs dedicados**: un PR que introduce alertas nuevas a propósito queda bloqueado por *Require code scanning results* y no debería mezclarse con otros cambios que se quieran mergear.
 - Medir el impacto en Security overview (alertas corregidas con Autofix, tiempo de remediación).
 - Hacer seguimiento de los fixes que se descartan, porque suelen indicar falsos positivos o queries que conviene ajustar.
 
+### 4.7 Autofix con agente: security campaigns y agente de código de Copilot
+
+Además de las sugerencias individuales en PRs y alertas, GitHub permite **remediar alertas en lote** combinando dos piezas:
+
+| Pieza | Qué hace | Nivel |
+|---|---|---|
+| **Security campaigns** | Agrupan un conjunto de alertas de code scanning de la organización (por ejemplo, *"todos los `py/sql-injection` de los repos de producción"*), con **fecha límite** y **responsables**. Para cada alerta de la campaña, Autofix genera la corrección propuesta | Organización (Code Security) |
+| **Agente de código de Copilot** (Copilot coding agent) | Se le asigna una alerta (o un issue) y trabaja de forma autónoma: aplica el autofix o su propio cambio en una rama, ejecuta los tests en un entorno de GitHub Actions y **abre un Pull Request** para revisión | Organización / repositorio con licencia de Copilot |
+
+**Flujo de remediación con agente:**
+
+1. El equipo de seguridad (*security manager* u owner de la organización) crea una **campaña** desde *Organización → Security → Campaigns*, eligiendo las alertas por regla, severidad o repositorio, y define la fecha límite y los responsables.
+2. Los responsables reciben la campaña con la corrección propuesta por Autofix para cada alerta.
+3. Para cada alerta (o en lote), el responsable puede **crear un PR con el fix** o **asignarla al agente de Copilot**.
+4. El agente crea una rama, aplica el cambio, ejecuta los workflows de CI y abre un PR. Las ejecuciones de workflows en PRs del agente pueden requerir aprobación manual (*Approve and run workflows*).
+5. El PR pasa por el mismo control que cualquier cambio: **checks obligatorios, CodeQL y revisión de CODEOWNERS**. Quien pidió el trabajo al agente **no puede aprobar** su PR.
+6. Al hacer merge, el siguiente análisis de CodeQL cierra la alerta y la campaña muestra el avance.
+
+**Qué hace y qué no hace el agente:**
+
+| Hace | No hace |
+|---|---|
+| Aplica correcciones en código y, si hace falta, agrega dependencias o ajusta tests | No hace merge: siempre deja un PR para revisión humana |
+| Ejecuta los tests del repo antes de entregar | No garantiza que la corrección sea correcta ni completa |
+| Responde a comentarios del PR con nuevos commits | No corrige dependencias vulnerables (Dependabot) ni secretos expuestos (hay que rotarlos) |
+
+> Varias de estas capacidades (asignar alertas de campañas al agente, campañas de secret scanning) se publican primero en *preview*. Conviene confirmar su disponibilidad para el plan de la organización antes de planificar sobre ellas.
+
+### 4.8 Requisitos para implementarlo en sus repositorios
+
+| # | Requisito | Detalle | Cómo verificarlo |
+|---|---|---|---|
+| 1 | **Organización** | Security campaigns, el agente y las políticas centrales son funciones de organización; no existen en cuentas personales | *Your organizations* |
+| 2 | **Licencia de Code Security** | Obligatoria en repositorios **privados**; en públicos, code scanning y Autofix son gratuitos | *Org → Settings → Billing and licensing* |
+| 3 | **Code scanning con CodeQL** | Default setup o advanced setup (no ambos a la vez), con análisis recientes en la rama predeterminada. Autofix trabaja sobre alertas de la **rama predeterminada** | *Security → Code scanning*; workflow **Autofix Agent** (requisitos) |
+| 4 | **Lenguaje soportado** | C#, C/C++, Go, Java/Kotlin, JavaScript/TypeScript, Python, Ruby, Swift y workflows de GitHub Actions | Workflow **Autofix Agent** |
+| 5 | **Copilot Autofix habilitado** | *Org → Settings → Code security → Global settings* y *Repo → Settings → Code security → Code scanning → Copilot Autofix* | Workflow **Autofix Agent** (la API responde 403 si está deshabilitado) |
+| 6 | **Rol para campañas** | Owner de la organización o **security manager** | *Org → Settings → Roles* |
+| 7 | **Licencia de Copilot** (solo para el agente) | Copilot Business o Enterprise, con la política del **coding agent** habilitada para la organización y el repositorio. **Autofix no la necesita**; el agente sí | *Org → Settings → Copilot → Policies* |
+| 8 | **GitHub Actions habilitado** | El agente y los tests de validación corren en Actions (consumen minutos en repos privados) | *Repo → Settings → Actions* |
+| 9 | **Tests automatizados** | Sin tests, un parche que compila puede cambiar el comportamiento sin que nadie lo note | Job `test` del workflow |
+| 10 | **Gobierno del merge** | Ruleset con checks obligatorios, *Require code scanning results* y revisión de CODEOWNERS (ver [sección 6](#6-gobierno-del-merge-rulesets-codeowners-y-aprobaciones)) | *Settings → Rules* |
+
+### 4.9 Prueba en este repositorio: workflow *Autofix Agent*
+
+Como este repo es personal (sin campañas ni agente), el flujo se reproduce a nivel repositorio con la **API REST de Autofix** en el workflow [`autofix-agent.yml`](.github/workflows/autofix-agent.yml) y el script [`autofix_agent.py`](.github/scripts/autofix_agent.py):
+
+| Paso | Endpoint |
+|---|---|
+| 1. Verificar requisitos (visibilidad, análisis de CodeQL, default setup, lenguajes) | `GET /repos/{r}`, `GET .../code-scanning/analyses`, `GET .../code-scanning/default-setup`, `GET .../languages` |
+| 2. Seleccionar alertas abiertas de CodeQL con severidad >= `min_severity` | `GET .../code-scanning/alerts?state=open` |
+| 3. Generar el autofix y esperar el resultado (`pending` → `success` / `error` / `outdated`) | `POST` y `GET .../code-scanning/alerts/{n}/autofix` |
+| 4. (Opcional) Commitear los autofix en una rama `autofix/agente-<run>` | `POST .../code-scanning/alerts/{n}/autofix/commits` |
+| 5. (Opcional) Abrir un PR de remediación para revisión | `POST .../pulls` |
+
+Cómo ejecutarlo:
+
+1. Hacer merge a `main` (un workflow con `workflow_dispatch` solo aparece si está en la rama predeterminada).
+2. Habilitar *Settings → Actions → General →* ☑ **Allow GitHub Actions to create and approve pull requests** (para el PR).
+3. *Actions → Autofix Agent → Run workflow*, con `min_severity`, `max_alerts` y `create_pr`.
+4. Revisar el resumen: tabla de **requisitos** (✅ / ⚠️ / ❌) y tabla de **alertas procesadas** con el estado del autofix. Si `create_pr: true`, se abre un PR que pasa por el ruleset y CODEOWNERS como cualquier otro cambio.
+
+El job falla si no se cumple algún requisito obligatorio (por ejemplo, code scanning sin análisis o Autofix deshabilitado). La lógica de selección de alertas y de requisitos tiene pruebas unitarias en [`test_security_scripts.py`](.github/scripts/tests/test_security_scripts.py), que corren en el job **Tests (scripts de seguridad)**.
+
+> Los PRs creados con `GITHUB_TOKEN` **no disparan** otros workflows. Para que el PR del agente ejecute los checks, hay que cerrarlo y reabrirlo, hacer un push a la rama, o usar un token de GitHub App en lugar de `GITHUB_TOKEN`.
+
 ---
 
-## 5. Gobierno del merge: rulesets, CODEOWNERS y aprobaciones
+## 5. Excepciones de code scanning y secret scanning
 
-### 5.1 Ruleset sobre `main` (configuración de la demo)
+La [sección 3](#3-excepción-exclusión-y-control-mínimo-de-vulnerabilidades-de-dependencias) cubre las excepciones de **dependencias**. Para hallazgos de **código** (code scanning) y **secretos** (secret scanning), la excepción no se declara en un archivo: se registra **en la propia alerta** al descartarla o resolverla. Por eso el control se basa en tres piezas: **motivos y justificación** obligatorios, **aprobación** antes de descartar y **auditoría** de lo descartado.
+
+### 5.1 Code scanning: motivos de descarte
+
+Al descartar una alerta (*Security → Code scanning → alerta → Dismiss alert*) se elige un motivo y se agrega un comentario:
+
+| Motivo (UI) | Valor en la API | Cuándo usarlo | ¿Es una excepción? |
+|---|---|---|---|
+| False positive | `false positive` | La query marcó algo que no es vulnerable (por ejemplo, el input ya se valida) | Corrección del hallazgo: requiere justificación técnica |
+| Used in tests | `used in tests` | El código vulnerable solo existe en tests o fixtures | Excepción de bajo riesgo |
+| Won't fix | `won't fix` | Riesgo aceptado: no se va a corregir | **Excepción**: requiere ID, aprobación y fecha de revisión |
+| — | `mitigated` | Mitigado por un control externo (lo acepta la API) | **Excepción**: requiere ID y aprobación |
+
+- El comentario (`dismissed_comment`, hasta 280 caracteres) es la **justificación**. La política de este repo exige un mínimo de 20 caracteres y, para `won't fix` y `mitigated`, un ID de excepción con formato `EXC-AAAA-NNN`.
+- Una alerta descartada se puede **reabrir**. Si el código cambia y la vulnerabilidad vuelve a aparecer en otro lugar, CodeQL abre una alerta nueva.
+- Por API: `PATCH /repos/{o}/{r}/code-scanning/alerts/{n}` con `state=dismissed`, `dismissed_reason` y `dismissed_comment`.
+
+### 5.2 Secret scanning: resoluciones y bypass de push protection
+
+| Resolución (UI) | Valor en la API | Significado | ¿Es una excepción? |
+|---|---|---|---|
+| Revoked | `revoked` | El secreto se **rotó o revocó** | No: es la remediación correcta |
+| False positive | `false_positive` | No es un secreto real | Requiere justificación |
+| Used in tests | `used_in_tests` | Credencial de prueba sin acceso real | **Excepción**: requiere ID |
+| Won't fix | `wont_fix` | Riesgo aceptado | **Excepción**: requiere ID y aprobación |
+
+**Bypass de push protection.** Cuando push protection bloquea un push con un secreto, el desarrollador puede saltarse el bloqueo eligiendo un motivo:
+
+- *It's used in tests* o *It's a false positive*: se crea una alerta **ya cerrada** con ese motivo.
+- *I'll fix it later*: se crea una alerta **abierta**. El secreto ya está en el repositorio y debe rotarse.
+
+La política de este repo considera un incumplimiento que una alerta siga abierta más de **7 días** después de un bypass.
+
+### 5.3 Quién aprueba: delegated alert dismissal y delegated bypass
+
+Sin configuración adicional, **cualquier persona con permiso de escritura** puede descartar alertas y saltarse push protection. Para exigir aprobación, GitHub ofrece dos mecanismos de organización:
+
+| Mecanismo | Qué controla | Cómo funciona | Quién aprueba |
+|---|---|---|---|
+| **Delegated alert dismissal** | Descartes de alertas de code scanning (y de secret scanning) | El desarrollador no descarta: envía una **solicitud de descarte** con motivo y comentario. La alerta sigue abierta hasta que se aprueba o se rechaza. Por API: `PATCH` de la alerta con `create_request: true`. La alerta aprobada registra `dismissal_approved_by` | Owners, **security managers** o roles personalizados con permiso para revisar solicitudes de descarte |
+| **Delegated bypass** de push protection | Bypass de secretos bloqueados en el push | El desarrollador pide el bypass con un comentario. Solo se puede hacer el push cuando un revisor lo aprueba. Las solicitudes vencen si no se revisan a tiempo | La **bypass list** definida en la security configuration (roles o teams, por ejemplo el equipo de seguridad) |
+
+Se habilitan desde *Organización → Settings → Code security → Configurations*, en la security configuration que se aplica a los repositorios. Requieren **organización** con Code Security o Secret Protection, según el caso.
+
+### 5.4 Trazabilidad: audit log y API
+
+| Fuente | Qué registra | Cómo consultarlo |
+|---|---|---|
+| **Línea de tiempo de la alerta** | Cada cambio de estado de la alerta: quién la descartó o reabrió, cuándo y con qué comentario | Página de la alerta |
+| **API de code scanning** | `dismissed_by`, `dismissed_at`, `dismissed_reason`, `dismissed_comment`, `dismissal_approved_by` | `GET /repos/{o}/{r}/code-scanning/alerts?state=dismissed` (también a nivel organización) |
+| **API de secret scanning** | `resolution`, `resolved_by`, `resolved_at`, `resolution_comment`, `push_protection_bypassed`, `push_protection_bypassed_by`, `push_protection_bypassed_at`, `push_protection_bypass_request_comment`, `push_protection_bypass_request_reviewer` | `GET /repos/{o}/{r}/secret-scanning/alerts` (requiere permiso *Secret scanning alerts: read*; `GITHUB_TOKEN` no lo tiene) |
+| **Audit log de la organización** | Eventos de secret scanning, push protection (bypass y solicitudes de bypass) y cambios en las configuraciones de seguridad | *Org → Settings → Audit log* o `GET /orgs/{org}/audit-log`, filtrando por la categoría del evento. Se puede transmitir a un SIEM (*audit log streaming*, Enterprise) |
+| **Security overview** | Métricas de alertas descartadas, bypass de push protection y solicitudes pendientes | *Org → Security* |
+
+> Los nombres exactos de los eventos del audit log cambian con las versiones del producto. Conviene confirmarlos en la documentación de eventos del audit log antes de construir alertas o reportes sobre ellos.
+
+### 5.5 Procedimiento propuesto
+
+1. **Corregir primero**: aplicar Autofix o corregir el código, o **rotar** el secreto.
+2. Si no se puede corregir, **registrar la excepción** en `.github/security/excepciones.yml` (o el registro central de 3.3) con ID `EXC-AAAA-NNN`, justificación, responsable y vencimiento. El archivo está protegido por CODEOWNERS, así que la entrada requiere aprobación.
+3. **Descartar la alerta** con el motivo correspondiente y el **ID de excepción en el comentario**. En una organización, el descarte pasa por **delegated alert dismissal** y el equipo de seguridad lo aprueba.
+4. Para secretos, preferir siempre `revoked`. El bypass de push protection pasa por **delegated bypass**. Un bypass con *I'll fix it later* debe resolverse en el plazo de la política.
+5. **Auditar** de forma periódica que cada descarte cumpla la política (motivo, justificación, ID, aprobador) y conservar el registro.
+6. **Revisar** las excepciones vencidas: reabrir la alerta o renovar la excepción con una nueva aprobación.
+
+### 5.6 Prueba en este repositorio: workflow *Auditoría de excepciones*
+
+El workflow [`security-exceptions-audit.yml`](.github/workflows/security-exceptions-audit.yml) ejecuta [`security_exceptions_audit.py`](.github/scripts/security_exceptions_audit.py) cada lunes, de forma manual o cuando cambia la política. El script valida las alertas descartadas contra [`politica-descartes.yml`](.github/security/politica-descartes.yml):
+
+| Regla de la política | Code scanning | Secret scanning |
+|---|---|---|
+| Motivos permitidos | `false positive`, `won't fix`, `used in tests`, `mitigated` | `revoked`, `false_positive`, `used_in_tests`, `wont_fix` |
+| Justificación mínima | 20 caracteres | 20 caracteres |
+| ID de excepción obligatorio | `won't fix`, `mitigated` | `wont_fix`, `used_in_tests` |
+| Quién puede descartar | Lista `aprobadores` | Lista `aprobadores` |
+| Aprobación delegada | `requiere_aprobacion_delegada` (desactivado en el repo personal) para `critical` y `high` | — |
+| Bypass de push protection | — | Máximo 7 días abierta tras el bypass |
+
+**Resultado:** publica en el Summary una tabla por excepción (tipo, alerta, hallazgo, severidad, motivo, justificación, quién, cuándo, aprobado por y si cumple), sube el registro de trazabilidad como artifact CSV (`registro-excepciones-<run>`, retenido 90 días) y **falla** si alguna excepción no cumple la política.
+
+**Cómo probarlo:**
+
+1. Hacer merge a `main` y ejecutar *Actions → Auditoría de excepciones → Run workflow*.
+2. En *Security → Code scanning*, descartar una alerta de la demo, por ejemplo `py/flask-debug` en `demo/codeql-code-scanning/app/app.py`:
+   - Motivo **Won't fix** con el comentario `EXC-2026-010: app de demo, nunca se despliega a producción` → ✅ cumple.
+   - Motivo **Won't fix** con el comentario `no aplica` → ❌ justificación corta y sin ID de excepción.
+3. Volver a ejecutar el workflow y revisar la tabla y el CSV.
+4. (Opcional) Para incluir secret scanning, crear el secreto `SECURITY_AUDIT_TOKEN`: fine-grained PAT con *Secret scanning alerts: Read-only* sobre el repo.
+
+La lógica de validación tiene pruebas unitarias en [`test_security_scripts.py`](.github/scripts/tests/test_security_scripts.py): descartes válidos e inválidos, ID de excepción, aprobadores, aprobación delegada, secretos revocados, `used_in_tests` y plazo de bypass.
+
+> En un repo personal no existen delegated dismissal ni delegated bypass: cualquier colaborador puede descartar. La auditoría es el **control detectivo** que compensa la falta del control preventivo. En una organización, se activan ambos mecanismos y se pone `requiere_aprobacion_delegada: true`.
+
+---
+
+## 6. Gobierno del merge: rulesets, CODEOWNERS y aprobaciones
+
+### 6.1 Ruleset sobre `main` (configuración de la demo)
 
 En *Settings → Rules → Rulesets → New branch ruleset* (o importando el JSON del ruleset):
 
@@ -723,8 +892,8 @@ En *Settings → Rules → Rulesets → New branch ruleset* (o importando el JSO
 | Enforcement status | **Active**, con la **bypass list vacía** (ni siquiera el admin se salta las reglas) |
 | Target | **Include default branch** |
 | Restrict deletions / Block force pushes | ☑ |
-| Require a pull request before merging | **Required approvals: 1**; ☑ *Require review from Code Owners* (ver 5.4 y 5.5); *Require approval of the most recent reviewable push* ☐; *Require conversation resolution* ☑ |
-| Require status checks to pass | ☑ *Require branches to be up to date*; checks con origen **GitHub Actions**: `Dependabot severidad mínima`, `Dependency Review`, `CodeQL (python)`, `CodeQL (actions)`, `Tests (codeql-code-scanning)`, `Tests (copilot-autofix)` |
+| Require a pull request before merging | **Required approvals: 1**; ☑ *Require review from Code Owners* (ver 6.4 y 6.5); *Require approval of the most recent reviewable push* ☐; *Require conversation resolution* ☑ |
+| Require status checks to pass | ☑ *Require branches to be up to date*; checks con origen **GitHub Actions**: `Dependabot severidad mínima`, `Dependency Review`, `CodeQL (python)`, `CodeQL (actions)`, `Tests (codeql-code-scanning)`, `Tests (copilot-autofix)` y, opcionalmente, `Tests (scripts de seguridad)` |
 | Require code scanning results | `CodeQL`, Security alerts **High or higher**, Alerts **Errors** (repositorios públicos o con Code Security) |
 
 Puntos a tener en cuenta:
@@ -733,14 +902,14 @@ Puntos a tener en cuenta:
 - El nombre del check debe coincidir **exactamente** con el `name:` del job (incluidos acentos). Si se renombra el job, el PR queda esperando un check que nunca llega (*"Expected — Waiting for status to be reported"*).
 - *Require code scanning results* evalúa las alertas **nuevas** del PR, no las que ya existen en `main`.
 
-### 5.2 ¿Qué es CODEOWNERS?
+### 6.2 ¿Qué es CODEOWNERS?
 
 Es un archivo que define **quién es responsable de revisar cada parte del repositorio**. Cuando un PR modifica archivos de una ruta, GitHub:
 
 1. **Asigna como reviewers** a los dueños de esa ruta, de forma automática.
 2. Si el ruleset tiene **Require review from Code Owners**, **bloquea el merge** hasta que apruebe uno de los dueños de cada ruta modificada.
 
-### 5.3 Crear el grupo de aprobadores
+### 6.3 Crear el grupo de aprobadores
 
 Cómo se define el "grupo" depende de quién es dueño del repositorio:
 
@@ -764,7 +933,7 @@ Cómo se define el "grupo" depende de quién es dueño del repositorio:
 4. Dar acceso: en el repositorio, *Settings → Collaborators and teams → Add teams* → rol **Write**.
 5. (Opcional) Asignación automática: team → *Settings → Code review* → **Enable auto assignment**, con la cantidad de revisores (por ejemplo `1`) y el algoritmo (*Round robin* o *Load balance*).
 
-### 5.4 Archivo `CODEOWNERS`
+### 6.4 Archivo `CODEOWNERS`
 
 Ubicación: `.github/CODEOWNERS` (también se acepta en la raíz o en `docs/`). Este es el archivo de esta demo ([`.github/CODEOWNERS`](.github/CODEOWNERS)); en un equipo real, cada ruta tendría a otra persona o a un team (por ejemplo `@mi-org/aprobadores-seguridad`):
 
@@ -819,17 +988,17 @@ Qué se ve en el PR:
 - **Files changed**: cada archivo indica su dueño (*"Owned by @usuario"*).
 - **Caja de merge**: *"Review required — Waiting on code owner review from @usuario"* hasta que uno apruebe.
 
-### 5.5 Limitación: el autor no puede aprobar su propio PR
+### 6.5 Limitación: el autor no puede aprobar su propio PR
 
 GitHub **no cuenta la aprobación del autor del PR**, tampoco como code owner. Copilot code review solo comenta y tampoco cuenta como aprobación. Por eso, en un repositorio con una sola persona:
 
 | Configuración | Resultado |
 |---|---|
 | CODEOWNERS solo con el autor + *Require review from Code Owners* (**configuración actual de la demo**) | ❌ El merge queda en *"Review required — Waiting on code owner review"*: el autor no puede aprobar y el bot de Actions **no puede** ser code owner. Sirve para mostrar el mensaje del aprobador |
-| CODEOWNERS solo con el autor, regla desactivada + aprobación automática (5.6) | ✅ Funciona: CODEOWNERS muestra la asignación de dueños y el bot da la aprobación requerida |
+| CODEOWNERS solo con el autor, regla desactivada + aprobación automática (6.6) | ✅ Funciona: CODEOWNERS muestra la asignación de dueños y el bot da la aprobación requerida |
 | CODEOWNERS con un **segundo usuario** + regla activada | ✅ Es el flujo real: el compañero aprueba como code owner |
 
-### 5.6 Aprobación automática (solo para la demo)
+### 6.6 Aprobación automática (solo para la demo)
 
 Para validar el flujo de aprobación sin un segundo revisor, el workflow tiene el job **Aprobación automática** (`auto-approve`):
 
@@ -849,7 +1018,7 @@ Flujo resultante del PR:
 
 ---
 
-## 6. Referencias
+## 7. Referencias
 
 - About GitHub Advanced Security: <https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security>
 - Code scanning: <https://docs.github.com/en/code-security/code-scanning>
@@ -864,6 +1033,13 @@ Flujo resultante del PR:
 - REST API, Global security advisories: <https://docs.github.com/en/rest/security-advisories/global-advisories>
 - Reusable workflows: <https://docs.github.com/en/actions/sharing-automations/reusing-workflows>
 - Rulesets, required workflows y code scanning: <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets>
+- REST API, Autofix de code scanning: <https://docs.github.com/en/rest/code-scanning/code-scanning#get-the-status-of-an-autofix-for-a-code-scanning-alert>
+- Copilot coding agent: <https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent>
+- Dismissing code scanning alerts: <https://docs.github.com/en/code-security/code-scanning/managing-code-scanning-alerts/resolving-code-scanning-alerts>
+- Delegated alert dismissal: <https://docs.github.com/en/code-security/code-scanning/managing-your-code-scanning-configuration/enabling-delegated-alert-dismissal-for-code-scanning>
+- Resolving secret scanning alerts: <https://docs.github.com/en/code-security/secret-scanning/managing-alerts-from-secret-scanning/resolving-alerts>
+- Delegated bypass for push protection: <https://docs.github.com/en/code-security/secret-scanning/using-advanced-secret-scanning-and-push-protection-features/delegated-bypass-for-push-protection>
+- Audit log events for your organization: <https://docs.github.com/en/organizations/keeping-your-organization-secure/managing-security-settings-for-your-organization/audit-log-events-for-your-organization>
 - About code owners: <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners>
 - Managing code review settings for your team: <https://docs.github.com/en/organizations/organizing-members-into-teams/managing-code-review-settings-for-your-team>
 - Managing GitHub Actions settings (aprobar PRs desde Actions): <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository>

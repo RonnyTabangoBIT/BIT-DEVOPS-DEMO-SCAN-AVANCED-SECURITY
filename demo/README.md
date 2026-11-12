@@ -38,6 +38,19 @@ Estos ajustes no se pueden versionar en el repositorio y deben hacerse desde la 
 4. **Aprobación desde Actions** (Settings → Actions → General → Workflow permissions):
    ☑ *Allow GitHub Actions to create and approve pull requests*, para el job `Aprobación automática`.
 
+5. **(Opcional) Secreto `SECURITY_AUDIT_TOKEN`** (Settings → Secrets and variables → Actions): fine-grained PAT con
+   *Secret scanning alerts: Read-only*, para que la **Auditoría de excepciones** incluya secret scanning.
+
+## Workflows adicionales
+
+| Workflow | Disparo | Qué hace |
+|---|---|---|
+| [`autofix-agent.yml`](../.github/workflows/autofix-agent.yml) | Manual (`workflow_dispatch`) | Verifica los requisitos de Copilot Autofix, genera autofix por API para las alertas de CodeQL de `main` y, opcionalmente, abre un PR de remediación |
+| [`security-exceptions-audit.yml`](../.github/workflows/security-exceptions-audit.yml) | Lunes, manual o al cambiar la política | Valida los descartes de code scanning y secret scanning contra [`politica-descartes.yml`](../.github/security/politica-descartes.yml) y publica un registro CSV |
+
+Ambos necesitan estar en `main` para poder ejecutarse manualmente. Ver las secciones 4.7 a 4.9 y 5 de
+[`INVESTIGACION-ADVANCED-SECURITY.md`](../INVESTIGACION-ADVANCED-SECURITY.md).
+
 ## Aprobadores (CODEOWNERS)
 
 [`.github/CODEOWNERS`](../.github/CODEOWNERS) define el aprobador de cada ruta. Al abrir un PR, GitHub lo asigna

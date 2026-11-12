@@ -1,0 +1,44 @@
+name: Autofix Agent
+
+# Remediación en lote con Copilot Autofix (equivalente a "security campaign + agente" a nivel repositorio).
+# Se ejecuta manualmente (Actions -> Autofix Agent -> Run workflow). Requiere que el workflow esté en la rama
+# predeterminada y que Copilot Autofix esté habilitado (Settings -> Code security -> Code scanning).
+# Para crear el PR: Settings -> Actions -> General -> "Allow GitHub Actions to create and approve pull requests".
+on:
+  workflow_dispatch:
+    inputs:
+      min_severity:
+        description: "Severidad mínima de las alertas a corregir"
+        type: choice
+        options: [critical, high, medium, low]
+        default: high
+      max_alerts:
+        description: "Cantidad máxima de alertas a procesar"
+        type: number
+        default: 5
+      create_pr:
+        description: "Commitear los autofix en una rama nueva y abrir un PR"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write         # crear la rama y commitear los autofix
+  pull-requests: write    # abrir el PR de remediación
+  security-events: write  # leer alertas y generar autofix
+
+jobs:
+  autofix:
+    name: Autofix Agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generar autofix para alertas de code scanning
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MIN_SEVERITY: ${{ inputs.min_severity }}
+          MAX_ALERTS: ${{ inputs.max_alerts }}
+          CREATE_PR: ${{ inputs.create_pr }}
+        run: python .github/scripts/autofix_agent.py

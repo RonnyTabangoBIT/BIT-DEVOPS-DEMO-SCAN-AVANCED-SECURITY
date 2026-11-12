@@ -1,0 +1,43 @@
+name: Auditoría de excepciones
+
+# Revisa las alertas DESCARTADAS de code scanning y RESUELTAS de secret scanning contra
+# .github/security/politica-descartes.yml y publica el registro de trazabilidad (Summary + CSV).
+# Secret scanning requiere el secreto SECURITY_AUDIT_TOKEN (fine-grained PAT con "Secret scanning alerts: Read");
+# sin él, esa parte se omite con aviso.
+on:
+  schedule:
+    - cron: "0 13 * * 1"   # lunes 13:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/security/politica-descartes.yml
+
+permissions:
+  contents: read
+  security-events: read   # leer alertas de code scanning
+
+jobs:
+  audit:
+    name: Auditoría de excepciones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Auditar descartes de code scanning y secret scanning
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECURITY_AUDIT_TOKEN: ${{ secrets.SECURITY_AUDIT_TOKEN }}
+          AUDIT_CSV: registro-excepciones.csv
+        run: python .github/scripts/security_exceptions_audit.py
+      - name: Publicar registro de trazabilidad
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registro-excepciones-${{ github.run_id }}
+          path: registro-excepciones.csv
+          if-no-files-found: ignore
+          retention-days: 90

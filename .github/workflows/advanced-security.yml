@@ -198,6 +198,19 @@ jobs:
       - name: Evaluar umbral de vulnerabilidades
         run: python .github/scripts/severity_gate.py
 
+  # Pruebas de la lógica del Autofix Agent y de la auditoría de excepciones (sin llamar a la API).
+  security-scripts-tests:
+    name: Tests (scripts de seguridad)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml
+      - name: Run tests
+        run: python -m pytest .github/scripts/tests -v
+
   # Aprobación automática (solo para la demo, repo personal sin otros revisores).
   # GitHub no permite que el autor apruebe su propio PR, así que github-actions[bot] aprueba
   # en nombre del grupo APROBADORES, y solo si todos los jobs anteriores terminaron en success.
@@ -205,7 +218,7 @@ jobs:
   auto-approve:
     name: Aprobación automática
     if: github.event_name == 'pull_request'
-    needs: [test, codeql, dependency-review, dependabot-severity-gate]
+    needs: [test, codeql, dependency-review, dependabot-severity-gate, security-scripts-tests]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
