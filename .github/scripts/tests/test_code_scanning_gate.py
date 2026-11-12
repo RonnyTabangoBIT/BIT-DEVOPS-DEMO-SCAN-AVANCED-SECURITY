@@ -106,7 +106,7 @@ def test_sin_sarif_falla(monkeypatch, capsys, tmp_path):
 
 def test_archivo_del_repo_es_valido():
     _, exceptions, rules, errors = gate.load_policy(EXCEPTIONS, TODAY)
-    assert errors == [] and len(exceptions) == 4 and len(rules) == 2
+    assert errors == [] and len(exceptions) == 5 and len(rules) == 3
 
 
 def test_archivo_invalido_detecta_errores(monkeypatch, capsys, tmp_path):

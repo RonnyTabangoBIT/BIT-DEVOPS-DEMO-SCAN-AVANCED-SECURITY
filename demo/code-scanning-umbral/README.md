@@ -26,7 +26,16 @@ El job termina con *"❌ El gate falla (regla REG-COD-001 (critical))"*, marca c
 
 ## Cómo volver a verde
 
-Elegir una opción (agregar excepciones no sirve: la política no permite exceptuar hallazgos `critical`):
+Elegir una opción (una excepción no alcanza para las críticas: la política no permite exceptuar hallazgos `critical`):
 
 1. **Corregir el código**, por ejemplo aplicando las sugerencias de Copilot Autofix.
 2. **Borrar esta carpeta.**
+3. **Darle un cupo propio a la carpeta y exceptuar lo que se pueda** en
+   [`excepciones-codigo.yml`](../../.github/security/excepciones-codigo.yml). Es lo que hace la rama del **flujo en verde**:
+
+   | Entrada | Qué cubre | Resultado |
+   |---|---|---|
+   | `REG-COD-003` (regla por ruta, antes de `REG-COD-001`) | `demo/code-scanning-umbral/**`: hasta 3 critical y 1 high | Las 3 críticas quedan dentro del cupo (3 de 3) |
+   | `EXC-COD-2026-005` (excepción) | `py/sql-injection` (high) en `app_umbral.py` | La alta queda exceptuada |
+
+   Con eso `REG-COD-001` vuelve a 2 de 2 críticas y el job pasa en verde.
