@@ -10,7 +10,7 @@ updates:
 
   # Demo de severidad mínima: sin PRs de actualización de versión (solo seguridad).
   # El umbral de severidad se aplica con las reglas de auto-triage (Settings) y el job
-  # `dependabot-severity-gate` del workflow (MIN_SEVERITY).
+  # `dependabot-severity-gate` del workflow (MAX_CRITICAL / MAX_HIGH / MAX_MEDIUM / MAX_LOW).
   - package-ecosystem: pip
     directory: "/demo/dependabot-severidad-minima"
     schedule:

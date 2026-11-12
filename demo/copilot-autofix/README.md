@@ -9,6 +9,14 @@
 | `POST /register` | `py/weak-sensitive-data-hashing` (`md5`) | KDF con salt (`hashlib.pbkdf2_hmac`, argon2, etc.) |
 | `GET /login` | `py/url-redirection` | Validar que `next` sea relativa / del mismo host |
 
+> Los errores adicionales para probar Autofix (carpeta `errores/`: SQL injection, command injection,
+> path traversal, XSS y stack trace) se prueban en un PR dedicado desde la rama
+> `feature/demo-app-advanced-security`, para no bloquear el merge de otros cambios con la regla
+> *Require code scanning results*.
+
+> Autofix solo comenta en el PR las alertas **nuevas** en líneas modificadas por ese PR. Si un archivo ya está
+> en `main` con la alerta, use la Opción B (desde la alerta) o modifique la línea vulnerable en el PR.
+
 ## Cómo probarlo
 
 ### Opción A – en un Pull Request (recomendado)
