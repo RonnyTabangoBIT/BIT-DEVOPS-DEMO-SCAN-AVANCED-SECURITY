@@ -1,0 +1,196 @@
+<mxfile host="Electron" agent="Copilot">
+  <diagram id="bit-advanced-security-architecture" name="Arquitectura">
+    <mxGraphModel dx="1312" dy="945" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=26;fontStyle=1;fontColor=#172B4D;strokeColor=none;fillColor=none;" value="Arquitectura – GitHub Advanced Security Demo" vertex="1">
+          <mxGeometry height="45" width="900" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontColor=#44546F;strokeColor=none;fillColor=none;" value="Flujos de CI, análisis de seguridad y control de dependencias en cada push o Pull Request hacia main" vertex="1">
+          <mxGeometry height="28" width="1050" x="40" y="62" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_events" parent="1" style="swimlane;html=1;startSize=34;rounded=1;horizontal=1;fillColor=#F1F5F9;swimlaneFillColor=#FFFFFF;strokeColor=#B6C2CF;fontStyle=1;fontColor=#172B4D;" value="1. Repositorio y eventos" vertex="1">
+          <mxGeometry height="700" width="255" x="30" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_actions" parent="1" style="swimlane;html=1;startSize=34;rounded=1;horizontal=1;fillColor=#EAF2FF;swimlaneFillColor=#FFFFFF;strokeColor=#85B8FF;fontStyle=1;fontColor=#0747A6;" value="2. GitHub Actions" vertex="1">
+          <mxGeometry height="700" width="515" x="305" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_sources" parent="1" style="swimlane;html=1;startSize=34;rounded=1;horizontal=1;fillColor=#F3F0FF;swimlaneFillColor=#FFFFFF;strokeColor=#B8A6E5;fontStyle=1;fontColor=#403294;" value="3. Fuentes de seguridad" vertex="1">
+          <mxGeometry height="700" width="300" x="840" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_results" parent="1" style="swimlane;html=1;startSize=34;rounded=1;horizontal=1;fillColor=#E3FCEF;swimlaneFillColor=#FFFFFF;strokeColor=#79F2C0;fontStyle=1;fontColor=#006644;" value="4. Resultados y remediación" vertex="1">
+          <mxGeometry height="700" width="410" x="1160" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="event_pr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DEEBFF;strokeColor=#4C9AFF;fontColor=#0747A6;fontStyle=1;" value="Pull Request hacia main&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Comparación base/head&lt;/font&gt;" vertex="1">
+          <mxGeometry height="78" width="205" x="55" y="157" as="geometry" />
+        </mxCell>
+        <mxCell id="event_push" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DEEBFF;strokeColor=#4C9AFF;fontColor=#0747A6;fontStyle=1;" value="Push a main&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Ejecución del workflow&lt;/font&gt;" vertex="1">
+          <mxGeometry height="78" width="205" x="55" y="275" as="geometry" />
+        </mxCell>
+        <mxCell id="repo_manifests" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8993A4;fontColor=#172B4D;fontStyle=1;" value="Código y manifiestos&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;requirements*.txt · Pipfile&lt;br&gt;.github/workflows · dependabot.yml&lt;/font&gt;" vertex="1">
+          <mxGeometry height="112" width="205" x="55" y="421" as="geometry" />
+        </mxCell>
+        <mxCell id="repo_settings" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFAE6;strokeColor=#FFC400;fontColor=#7A5D00;fontStyle=1;" value="Configuración manual&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Dependency graph · alerts&lt;br&gt;Code scanning · Autofix&lt;/font&gt;" vertex="1">
+          <mxGeometry height="94" width="205" x="55" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="workflow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DEEBFF;strokeColor=#4C9AFF;fontColor=#0747A6;fontStyle=1;fontSize=14;" value="advanced-security.yml&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Trigger: push / pull_request&lt;/font&gt;" vertex="1">
+          <mxGeometry height="72" width="445" x="340" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="job_tests" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F5F7;strokeColor=#8993A4;fontColor=#172B4D;fontStyle=1;" value="Tests (matriz)&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;CodeQL demo · Copilot Autofix demo&lt;br&gt;pytest + reporte de artefacto&lt;/font&gt;" vertex="1">
+          <mxGeometry height="94" width="215" x="340" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="job_codeql" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F0FF;strokeColor=#8777D9;fontColor=#403294;fontStyle=1;" value="CodeQL (matriz)&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Python + GitHub Actions&lt;br&gt;security-extended&lt;/font&gt;" vertex="1">
+          <mxGeometry height="94" width="210" x="575" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="job_dep_review" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0B3;strokeColor=#FFC400;fontColor=#7A5D00;fontStyle=1;" value="Dependency Review&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Revisa cambios de dependencias&lt;br&gt;en el PR (moderate+)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="94" width="215" x="340" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="job_gate" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAE6FF;strokeColor=#8777D9;fontColor=#403294;fontStyle=1;" value="Severity gate&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;severity_gate.py compara&lt;br&gt;hallazgos con MAX_* por nivel&lt;/font&gt;" vertex="1">
+          <mxGeometry height="94" width="210" x="575" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="dependabot_config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3FCEF;strokeColor=#36B37E;fontColor=#006644;fontStyle=1;" value="dependabot.yml&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Escaneo semanal/diario&lt;br&gt;security updates agrupadas&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="215" x="340" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="manual_rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFAE6;strokeColor=#FFC400;fontColor=#7A5D00;fontStyle=1;" value="Límites configurables&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;MAX_CRITICAL=0 · MAX_HIGH=2&lt;br&gt;MAX_MEDIUM=15 · MAX_LOW=-1&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="210" x="575" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="dep_graph" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAE6FF;strokeColor=#8777D9;fontColor=#403294;fontStyle=1;" value="Dependency graph&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Manifiestos reconocidos&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="230" x="875" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="advisory_db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAE6FF;strokeColor=#8777D9;fontColor=#403294;fontStyle=1;" value="GitHub Advisory Database&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;severity_gate.py consulta advisories&lt;br&gt;pip y valida rangos de versión&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="230" x="875" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="dependabot_alerts" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3FCEF;strokeColor=#36B37E;fontColor=#006644;fontStyle=1;" value="Dependabot alerts&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Alertas de vulnerabilidades&lt;br&gt;en la rama predeterminada&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="230" x="875" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="repo_advisory" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F5F7;strokeColor=#8993A4;fontColor=#172B4D;fontStyle=1;" value="GitHub Security / Actions&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;GITHUB_TOKEN del workflow&lt;br&gt;Permisos según configuración&lt;/font&gt;" vertex="1">
+          <mxGeometry height="85" width="230" x="875" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="result_tests" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F5F7;strokeColor=#8993A4;fontColor=#172B4D;fontStyle=1;" value="Tests + artefactos&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Resumen por matriz en Actions&lt;/font&gt;" vertex="1">
+          <mxGeometry height="72" width="330" x="1200" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="result_codeql" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F0FF;strokeColor=#8777D9;fontColor=#403294;fontStyle=1;" value="Code scanning alerts&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;SARIF → Security → Code scanning&lt;br&gt;Copilot Autofix sugiere parches en PR&lt;/font&gt;" vertex="1">
+          <mxGeometry height="94" width="330" x="1200" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="result_review" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0B3;strokeColor=#FFC400;fontColor=#7A5D00;fontStyle=1;" value="Dependency Review check&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Bloquea cambios vulnerables moderate+&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="330" x="1200" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="result_gate" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBE6;strokeColor=#FF7452;fontColor=#BF2600;fontStyle=1;" value="Actions Summary + status&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Conteo por severidad vs MAX_*;&lt;br&gt;falla si cualquier límite se excede&lt;/font&gt;" vertex="1">
+          <mxGeometry height="92" width="330" x="1200" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="result_dependabot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3FCEF;strokeColor=#36B37E;fontColor=#006644;fontStyle=1;" value="Security updates / PR de Dependabot&lt;br&gt;&lt;font style=&quot;font-size:11px&quot;&gt;Corrección de dependencias vulnerables&lt;/font&gt;" vertex="1">
+          <mxGeometry height="78" width="330" x="1200" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_pr" edge="1" parent="1" source="event_pr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#4C9AFF;" target="workflow">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_push" edge="1" parent="1" source="event_push" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#4C9AFF;" target="workflow">
+          <mxGeometry relative="1" x="0.086" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="320" />
+              <mxPoint x="290" y="196" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_workflow_tests" edge="1" parent="1" source="workflow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8993A4;" target="job_tests">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_workflow_codeql" edge="1" parent="1" source="workflow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;" target="job_codeql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_workflow_review" edge="1" parent="1" source="workflow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#FFC400;" target="job_dep_review">
+          <mxGeometry relative="1" x="0.0032" as="geometry">
+            <Array as="points">
+              <mxPoint x="562.5" y="400" />
+              <mxPoint x="447.5" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_workflow_gate" edge="1" parent="1" source="workflow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="job_gate">
+          <mxGeometry relative="1" x="-0.3154" as="geometry">
+            <Array as="points">
+              <mxPoint x="562.5" y="400" />
+              <mxPoint x="680" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_tests_results" edge="1" parent="1" source="job_tests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8993A4;" target="result_tests">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="447.5" y="270" />
+              <mxPoint x="1365" y="270" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_codeql_results" edge="1" parent="1" source="job_codeql" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;" target="result_codeql" value=" ">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_review_results" edge="1" parent="1" source="job_dep_review" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#FFC400;" target="result_review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_gate_advisory" edge="1" parent="1" source="job_gate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;" target="advisory_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_advisory_gate" edge="1" parent="1" source="advisory_db" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;" target="job_gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_gate_results" edge="1" parent="1" source="job_gate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#FF7452;" target="result_gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_repo_graph" edge="1" parent="1" source="repo_manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;" target="dep_graph">
+          <mxGeometry relative="1" x="0.0723" as="geometry">
+            <Array as="points">
+              <mxPoint x="157.5" y="550" />
+              <mxPoint x="830" y="550" />
+              <mxPoint x="830" y="220" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_repo_gate" edge="1" parent="1" source="repo_manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#8777D9;" target="job_gate">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="157.5" y="390" />
+              <mxPoint x="680" y="390" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_repo_review" edge="1" parent="1" source="repo_manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#FFC400;" target="job_dep_review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_repo_dependabot" edge="1" parent="1" source="repo_manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#36B37E;" target="dependabot_config">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="157.5" y="560" />
+              <mxPoint x="447.5" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_config_alerts" edge="1" parent="1" source="dependabot_config" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#36B37E;" target="dependabot_alerts">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="447.5" y="560" />
+              <mxPoint x="715" y="560" />
+              <mxPoint x="715" y="555" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_graph_alerts" edge="1" parent="1" source="dep_graph" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#36B37E;" target="dependabot_alerts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_alerts_pr" edge="1" parent="1" source="dependabot_alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#36B37E;" target="result_dependabot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_rules" edge="1" parent="1" source="repo_settings" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;strokeColor=#FFC400;" target="manual_rules">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_limits" edge="1" parent="1" source="manual_rules" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=open;strokeColor=#FFC400;" target="job_gate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#44546F;strokeColor=none;fillColor=none;" value="Nota: Dependency Review evalúa dependencias introducidas en el PR. El severity gate analiza los manifiestos y consulta GitHub Advisory Database en cada ejecución. Dependabot alerts y Code scanning requieren estar habilitados en Settings." vertex="1">
+          <mxGeometry height="45" width="1480" x="40" y="820" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
