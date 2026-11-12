@@ -131,6 +131,44 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # SARIF para el gate de code scanning (job code-scanning-gate).
+      - name: Publicar SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results/*.sarif
+          retention-days: 7
+
+  # Control de umbrales y excepciones de code scanning (mismo esquema que el gate de dependencias).
+  # Orden de evaluación: excepciones vigentes -> reglas por ruta -> umbral global (MAX_*).
+  # Excepciones y reglas viven en .github/security/excepciones-codigo.yml (protegido por CODEOWNERS).
+  code-scanning-gate:
+    name: Code scanning severidad mínima
+    needs: codeql
+    runs-on: ubuntu-latest
+    env:
+      # Hallazgos permitidos por severidad fuera de las reglas por ruta (vacío o -1 = sin límite)
+      MAX_CRITICAL: 0
+      MAX_HIGH: 0
+      MAX_MEDIUM: 2
+      MAX_LOW: -1
+      SARIF_DIR: sarif
+      EXCEPTIONS_FILE: .github/security/excepciones-codigo.yml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Descargar SARIF de CodeQL
+        uses: actions/download-artifact@v4.3.0
+        with:
+          pattern: codeql-sarif-*
+          path: sarif
+          merge-multiple: true
+      - name: Evaluar umbral y excepciones de code scanning
+        run: python .github/scripts/code_scanning_gate.py
+
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
@@ -174,7 +212,9 @@ jobs:
   # Control de severidad mínima de Dependabot (demo/dependabot-severidad-minima).
   # Evalúa los manifiestos del directorio contra la GitHub Advisory Database (misma fuente que Dependabot),
   # por lo que funciona en cualquier rama/PR y solo usa GITHUB_TOKEN.
-  # Falla cuando, para alguna severidad, las vulnerabilidades encontradas superan las permitidas (MAX_*).
+  # Orden de evaluación: excepciones vigentes -> reglas por paquete/versión -> umbral global (MAX_*).
+  # Excepciones y reglas viven en .github/security/excepciones.yml (protegido por CODEOWNERS).
+  # Falla si se supera algún umbral o si el archivo de excepciones es inválido.
   dependabot-severity-gate:
     name: Dependabot severidad mínima
     runs-on: ubuntu-latest
@@ -185,15 +225,29 @@ jobs:
       MAX_MEDIUM: 15
       MAX_LOW: -1
       MANIFEST_DIRECTORY: demo/dependabot-severidad-minima
+      EXCEPTIONS_FILE: .github/security/excepciones.yml
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install packaging
+      - run: pip install packaging pyyaml
       - name: Evaluar umbral de vulnerabilidades
         run: python .github/scripts/severity_gate.py
+
+  # Pruebas de la lógica del Autofix Agent y de la auditoría de excepciones (sin llamar a la API).
+  security-scripts-tests:
+    name: Tests (scripts de seguridad)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml
+      - name: Run tests
+        run: python -m pytest .github/scripts/tests -v
 
   # Aprobación automática (solo para la demo, repo personal sin otros revisores).
   # GitHub no permite que el autor apruebe su propio PR, así que github-actions[bot] aprueba
@@ -202,7 +256,7 @@ jobs:
   auto-approve:
     name: Aprobación automática
     if: github.event_name == 'pull_request'
-    needs: [test, codeql, dependency-review, dependabot-severity-gate]
+    needs: [test, codeql, code-scanning-gate, dependency-review, dependabot-severity-gate, security-scripts-tests]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -216,7 +270,7 @@ jobs:
         run: |
           if [[ " $APROBADORES " == *" $AUTOR "* ]]; then
             gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve \
-              --body "✅ Aprobado automáticamente: todos los checks pasaron y \`$AUTOR\` pertenece al grupo de aprobadores."
+              --body "✅ Aprobado automáticamente: todos los checks pasaron y \`$AUTOR\` pertenece al grupo de aprobadores ($APROBADORES). Los cambios en rutas protegidas por CODEOWNERS siguen requiriendo la revisión del code owner."
             echo "## ✅ PR #$PR_NUMBER aprobado automáticamente (autor: \`$AUTOR\`)" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "## ⏭️ PR #$PR_NUMBER sin aprobación automática: \`$AUTOR\` no está en el grupo de aprobadores" >> "$GITHUB_STEP_SUMMARY"
