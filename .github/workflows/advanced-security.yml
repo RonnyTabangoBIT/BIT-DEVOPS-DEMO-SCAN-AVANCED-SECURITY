@@ -194,3 +194,30 @@ jobs:
       - run: pip install packaging
       - name: Evaluar umbral de vulnerabilidades
         run: python .github/scripts/severity_gate.py
+
+  # Aprobación automática (solo para la demo, repo personal sin otros revisores).
+  # GitHub no permite que el autor apruebe su propio PR, así que github-actions[bot] aprueba
+  # en nombre del grupo APROBADORES, y solo si todos los jobs anteriores terminaron en success.
+  # Requiere: Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+  auto-approve:
+    name: Aprobación automática
+    if: github.event_name == 'pull_request'
+    needs: [test, codeql, dependency-review, dependabot-severity-gate]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      APROBADORES: "RonnyTabangoBIT" # grupo de aprobadores: usuarios separados por espacio
+      AUTOR: ${{ github.event.pull_request.user.login }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Aprobar si el autor pertenece al grupo de aprobadores
+        run: |
+          if [[ " $APROBADORES " == *" $AUTOR "* ]]; then
+            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve \
+              --body "✅ Aprobado automáticamente: todos los checks pasaron y \`$AUTOR\` pertenece al grupo de aprobadores."
+            echo "## ✅ PR #$PR_NUMBER aprobado automáticamente (autor: \`$AUTOR\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## ⏭️ PR #$PR_NUMBER sin aprobación automática: \`$AUTOR\` no está en el grupo de aprobadores" >> "$GITHUB_STEP_SUMMARY"
+          fi
