@@ -42,10 +42,10 @@ jobs:
           name: pytest-report-${{ matrix.example }}
           path: demo/${{ matrix.example }}/pytest-report.xml
 
-      # VULNERABLE: download-artifact < 4.1.3 (CVE-2024-42471) para la demo de Dependency Review
+      # CORREGIDO: download-artifact >= 4.1.3 (CVE-2024-42471 afectaba a 4.0.0 - 4.1.2)
       - name: Download test report
         if: always()
-        uses: actions/download-artifact@v4.1.2
+        uses: actions/download-artifact@v4.3.0
         with:
           name: pytest-report-${{ matrix.example }}
           path: demo/${{ matrix.example }}/report
@@ -131,6 +131,44 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # SARIF para el gate de code scanning (job code-scanning-gate).
+      - name: Publicar SARIF
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results/*.sarif
+          retention-days: 7
+
+  # Control de umbrales y excepciones de code scanning (mismo esquema que el gate de dependencias).
+  # Orden de evaluación: excepciones vigentes -> reglas por ruta -> umbral global (MAX_*).
+  # Excepciones y reglas viven en .github/security/excepciones-codigo.yml (protegido por CODEOWNERS).
+  code-scanning-gate:
+    name: Code scanning severidad mínima
+    needs: codeql
+    runs-on: ubuntu-latest
+    env:
+      # Hallazgos permitidos por severidad fuera de las reglas por ruta (vacío o -1 = sin límite)
+      MAX_CRITICAL: 0
+      MAX_HIGH: 0
+      MAX_MEDIUM: 2
+      MAX_LOW: -1
+      SARIF_DIR: sarif
+      EXCEPTIONS_FILE: .github/security/excepciones-codigo.yml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Descargar SARIF de CodeQL
+        uses: actions/download-artifact@v4.3.0
+        with:
+          pattern: codeql-sarif-*
+          path: sarif
+          merge-multiple: true
+      - name: Evaluar umbral y excepciones de code scanning
+        run: python .github/scripts/code_scanning_gate.py
+
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
@@ -170,85 +208,70 @@ jobs:
             echo "$VULNERABLE_CHANGES" | jq -r '.[] | .name as $n | .version as $v | .vulnerabilities[] |
               "| \($n) | \($v) | \(.severity) | [\(.advisory_ghsa_id)](\(.advisory_url)) | \(.advisory_summary | gsub("\\|"; "\\|")) |"'
           } >> "$GITHUB_STEP_SUMMARY"
+
   # Control de severidad mínima de Dependabot (demo/dependabot-severidad-minima).
-  # GITHUB_TOKEN no puede leer alertas de Dependabot: requiere el secreto DEPENDABOT_ALERTS_TOKEN
-  # (fine-grained PAT con permiso "Dependabot alerts: Read-only"). Sin el secreto, el job se omite con aviso.
+  # Evalúa los manifiestos del directorio contra la GitHub Advisory Database (misma fuente que Dependabot),
+  # por lo que funciona en cualquier rama/PR y solo usa GITHUB_TOKEN.
+  # Orden de evaluación: excepciones vigentes -> reglas por paquete/versión -> umbral global (MAX_*).
+  # Excepciones y reglas viven en .github/security/excepciones.yml (protegido por CODEOWNERS).
+  # Falla si se supera algún umbral o si el archivo de excepciones es inválido.
   dependabot-severity-gate:
     name: Dependabot severidad mínima
     runs-on: ubuntu-latest
     env:
-      MIN_SEVERITY: high # low | medium | high | critical
-      MANIFEST_DIRECTORY: demo/dependabot-severidad-minima/
-      GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
+      # Vulnerabilidades permitidas por severidad (vacío o -1 = sin límite)
+      MAX_CRITICAL: 0
+      MAX_HIGH: 2
+      MAX_MEDIUM: 15
+      MAX_LOW: -1
+      MANIFEST_DIRECTORY: demo/dependabot-severidad-minima
+      EXCEPTIONS_FILE: .github/security/excepciones.yml
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Evaluar alertas abiertas de Dependabot
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install packaging pyyaml
+      - name: Evaluar umbral de vulnerabilidades
+        run: python .github/scripts/severity_gate.py
+
+  # Pruebas de la lógica del Autofix Agent y de la auditoría de excepciones (sin llamar a la API).
+  security-scripts-tests:
+    name: Tests (scripts de seguridad)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml
+      - name: Run tests
+        run: python -m pytest .github/scripts/tests -v
+
+  # Aprobación automática (solo para la demo, repo personal sin otros revisores).
+  # GitHub no permite que el autor apruebe su propio PR, así que github-actions[bot] aprueba
+  # en nombre del grupo APROBADORES, y solo si todos los jobs anteriores terminaron en success.
+  # Requiere: Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+  auto-approve:
+    name: Aprobación automática
+    if: github.event_name == 'pull_request'
+    needs: [test, codeql, code-scanning-gate, dependency-review, dependabot-severity-gate, security-scripts-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      APROBADORES: "RonnyTabangoBIT" # grupo de aprobadores: usuarios separados por espacio
+      AUTOR: ${{ github.event.pull_request.user.login }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Aprobar si el autor pertenece al grupo de aprobadores
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::Secreto DEPENDABOT_ALERTS_TOKEN no configurado; se omite el control de severidad mínima."
-            echo "## 🛡️ Dependabot severidad mínima: ⚠️ omitido (falta DEPENDABOT_ALERTS_TOKEN)" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/dependabot/alerts?state=open&per_page=100" \
-            | jq 'add // []' > all-alerts.json
-          jq --arg manifest "$MANIFEST_DIRECTORY" \
-            '[.[] | select((.dependency.manifest_path // "" | ltrimstr("/")) | startswith($manifest))]' \
-            all-alerts.json > alerts.json
-          rank='{"low":1,"medium":2,"high":3,"critical":4}'
-          blocking=$(jq --argjson r "$rank" '[.[] | select($r[.security_advisory.severity] >= $r[env.MIN_SEVERITY])] | length' alerts.json)
-          total=$(jq 'length' alerts.json)
-          repo_total=$(jq 'length' all-alerts.json)
-          allowed=$(jq --argjson r "$rank" '[.[] | select($r[.security_advisory.severity] < $r[env.MIN_SEVERITY])] | length' alerts.json)
-          threshold_rank=$(jq -r --argjson r "$rank" --arg s "$MIN_SEVERITY" '$r[$s]')
-          {
-            echo "## 🛡️ Dependabot: resumen de vulnerabilidades"
-            echo
-            echo "- **Umbral mínimo bloqueante:** \`$MIN_SEVERITY\` (se bloquean alertas con severidad igual o superior)."
-            echo "- **Severidades permitidas:** por debajo de \`$MIN_SEVERITY\`."
-            echo "- **Alertas abiertas en todo el repositorio:** **$repo_total**."
-            echo "- **Alertas abiertas en los manifiestos \`$MANIFEST_DIRECTORY\`:** **$total**."
-            echo "- **Total de vulnerabilidades en los manifiestos:** **$total** — permitidas: **$allowed**, bloqueantes: **$blocking**."
-            echo
-            echo "| Severidad | Vulnerabilidades | Estado respecto al umbral |"
-            echo "|---|---:|---|"
-            for severity in critical high medium low; do
-              count=$(jq --arg severity "$severity" '[.[] | select(.security_advisory.severity == $severity)] | length' alerts.json)
-              severity_rank=$(jq -r --argjson r "$rank" --arg s "$severity" '$r[$s]')
-              if [ "$severity_rank" -ge "$threshold_rank" ]; then
-                status="Bloquea"
-              else
-                status="Permitida"
-              fi
-              echo "| $severity | $count | $status |"
-            done
-            echo
-            if [ "$total" -gt 0 ]; then
-              echo "| Paquete | Severidad | Bloquea | Advisory | Descripción |"
-              echo "|---|---|---|---|---|"
-              jq -r --argjson r "$rank" '.[] |
-                "| \(.security_vulnerability.package.name) | \(.security_advisory.severity) | \(if $r[.security_advisory.severity] >= $r[env.MIN_SEVERITY] then "❌" else "➖" end) | [\(.security_advisory.ghsa_id)](\(.html_url)) | \(.security_advisory.summary | gsub("\\|"; "\\|")) |"' alerts.json
-              echo
-            else
-              echo "No hay alertas abiertas asociadas a este manifiesto."
-              if [ "$repo_total" -gt 0 ]; then
-                echo
-                echo "Manifiestos con alertas abiertas:"
-                echo
-                echo "| Manifiesto | Alertas |"
-                echo "|---|---|"
-                jq -r 'group_by(.dependency.manifest_path)[] | "| `\(.[0].dependency.manifest_path)` | \(length) |"' all-alerts.json
-              fi
-              echo
-              echo "> Si esperabas alertas, confirma que los manifiestos ya están en la rama predeterminada y que Dependency graph y Dependabot alerts están habilitados. Dependabot solo genera alertas para dependencias detectadas en la rama predeterminada."
-            fi
-            if [ "$blocking" -gt 0 ]; then
-              echo "**Resultado: ❌ Hay vulnerabilidades bloqueantes (>= \`$MIN_SEVERITY\`).**"
-            elif [ "$total" -eq 0 ]; then
-              echo "**Resultado: ⚠️ No se encontraron alertas para este manifiesto; el umbral no se pudo evaluar.**"
-            else
-              echo "**Resultado: ✅ Ninguna vulnerabilidad alcanza el umbral \`$MIN_SEVERITY\`.**"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$blocking" -gt 0 ]; then
-            echo "::error::$blocking alerta(s) de Dependabot con severidad >= $MIN_SEVERITY"
-            exit 1
+          if [[ " $APROBADORES " == *" $AUTOR "* ]]; then
+            gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve \
+              --body "✅ Aprobado automáticamente: todos los checks pasaron y \`$AUTOR\` pertenece al grupo de aprobadores ($APROBADORES). Los cambios en rutas protegidas por CODEOWNERS siguen requiriendo la revisión del code owner."
+            echo "## ✅ PR #$PR_NUMBER aprobado automáticamente (autor: \`$AUTOR\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## ⏭️ PR #$PR_NUMBER sin aprobación automática: \`$AUTOR\` no está en el grupo de aprobadores" >> "$GITHUB_STEP_SUMMARY"
           fi

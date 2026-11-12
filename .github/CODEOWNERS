@@ -1,0 +1,28 @@
+# =====================================================================================
+# CODEOWNERS – Demo GitHub Advanced Security
+# Formato: <patrón de ruta>  <dueño1> <dueño2> ...   (basta la aprobación de UNO de la línea)
+# La ÚLTIMA regla que coincide con un archivo es la que aplica.
+# En un repo personal los dueños son usuarios colaboradores; en una organización, teams (@org/team).
+# Para que bloquee el merge: ruleset de main -> "Require review from Code Owners".
+# =====================================================================================
+
+# Dueño por defecto de todo el repositorio
+*                                         @RonnyTabangoBIT
+
+# Workflows, Dependabot y scripts de seguridad (umbrales MAX_*)
+/.github/                                 @RonnyTabangoBIT
+
+# Control de excepciones y gate de severidad mínima: aprobador de seguridad
+/.github/security/excepciones.yml         @RonnyTabangoBIT
+/.github/security/excepciones-codigo.yml  @RonnyTabangoBIT
+/.github/scripts/severity_gate.py         @RonnyTabangoBIT
+/.github/scripts/code_scanning_gate.py    @RonnyTabangoBIT
+/demo/dependabot-severidad-minima/        @RonnyTabangoBIT
+
+# Demos de code scanning, Autofix y dependency review
+/demo/codeql-code-scanning/               @RonnyTabangoBIT
+/demo/copilot-autofix/                    @RonnyTabangoBIT
+/demo/dependency-review/                  @RonnyTabangoBIT
+
+# Este mismo archivo: nadie puede cambiar los dueños sin aprobación
+/.github/CODEOWNERS                       @RonnyTabangoBIT
