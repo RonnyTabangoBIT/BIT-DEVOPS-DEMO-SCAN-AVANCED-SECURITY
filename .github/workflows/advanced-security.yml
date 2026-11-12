@@ -174,7 +174,9 @@ jobs:
   # Control de severidad mínima de Dependabot (demo/dependabot-severidad-minima).
   # Evalúa los manifiestos del directorio contra la GitHub Advisory Database (misma fuente que Dependabot),
   # por lo que funciona en cualquier rama/PR y solo usa GITHUB_TOKEN.
-  # Falla cuando, para alguna severidad, las vulnerabilidades encontradas superan las permitidas (MAX_*).
+  # Orden de evaluación: excepciones vigentes -> reglas por paquete/versión -> umbral global (MAX_*).
+  # Excepciones y reglas viven en .github/security/excepciones.yml (protegido por CODEOWNERS).
+  # Falla si se supera algún umbral o si el archivo de excepciones es inválido.
   dependabot-severity-gate:
     name: Dependabot severidad mínima
     runs-on: ubuntu-latest
@@ -185,13 +187,14 @@ jobs:
       MAX_MEDIUM: 15
       MAX_LOW: -1
       MANIFEST_DIRECTORY: demo/dependabot-severidad-minima
+      EXCEPTIONS_FILE: .github/security/excepciones.yml
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install packaging
+      - run: pip install packaging pyyaml
       - name: Evaluar umbral de vulnerabilidades
         run: python .github/scripts/severity_gate.py
 
@@ -216,7 +219,7 @@ jobs:
         run: |
           if [[ " $APROBADORES " == *" $AUTOR "* ]]; then
             gh pr review "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --approve \
-              --body "✅ Aprobado automáticamente: todos los checks pasaron y \`$AUTOR\` pertenece al grupo de aprobadores."
+              --body "✅ Aprobado automáticamente: todos los checks pasaron y \`$AUTOR\` pertenece al grupo de aprobadores ($APROBADORES). Los cambios en rutas protegidas por CODEOWNERS siguen requiriendo la revisión del code owner."
             echo "## ✅ PR #$PR_NUMBER aprobado automáticamente (autor: \`$AUTOR\`)" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "## ⏭️ PR #$PR_NUMBER sin aprobación automática: \`$AUTOR\` no está en el grupo de aprobadores" >> "$GITHUB_STEP_SUMMARY"

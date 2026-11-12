@@ -1,0 +1,69 @@
+# =====================================================================================
+# Control de excepciones del gate "Dependabot severidad mínima" (.github/scripts/severity_gate.py)
+#
+# Orden de evaluación de cada vulnerabilidad:
+#   1. excepciones        -> si coincide con una excepción VIGENTE, no cuenta.
+#   2. reglas_por_paquete -> si el paquete/versión tiene regla, se evalúa contra su propio umbral.
+#   3. umbral global      -> MAX_CRITICAL / MAX_HIGH / MAX_MEDIUM / MAX_LOW del workflow.
+#
+# Este archivo está protegido por CODEOWNERS: todo cambio requiere la aprobación del aprobador de seguridad.
+# Un archivo inválido (campos faltantes, vencimiento fuera de política, etc.) hace FALLAR el gate.
+# =====================================================================================
+
+politica:
+  max_dias_vigencia: 90               # ninguna excepción puede vencer más allá de hoy + 90 días
+  aviso_dias_antes: 15                # aviso (::warning) cuando falten 15 días o menos
+  permitir_excepcion_critical: false  # las vulnerabilidades critical nunca se exceptúan
+
+# -------------------------------------------------------------------------------------
+# EXCEPCIONES
+# Campos: id, justificacion, aprobado_por, vence (obligatorios)
+#         paquete y/o ghsa (al menos uno)
+#         versiones (opcional, p. ej. "==2.10", ">=1.0,<2.0"), severidades (opcional: critical|high|medium|low)
+#         solicitado_por (opcional)
+# -------------------------------------------------------------------------------------
+excepciones:
+  # Excepción por LIBRERÍA: todas las vulnerabilidades MEDIUM de jinja2 2.10.
+  - id: EXC-2026-001
+    paquete: jinja2
+    versiones: "==2.10"
+    severidades: [medium]
+    justificacion: "Demo: el sandbox de Jinja2 no se usa con plantillas de usuarios."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2027-01-31
+
+  # Excepción por VULNERABILIDAD puntual (GHSA). Vence pronto -> genera aviso.
+  - id: EXC-2026-002
+    ghsa: GHSA-462w-v97r-4m45           # jinja2 < 2.10.1, HIGH (CVE-2019-10906)
+    justificacion: "Demo: actualización a jinja2 3.x planificada para el próximo sprint."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2026-11-20
+
+  # Excepción VENCIDA: ya no se aplica; la vulnerabilidad vuelve a contar (aquí, por la regla REG-001).
+  - id: EXC-2026-003
+    ghsa: GHSA-9wx4-h78v-vm56           # requests < 2.32.0, MEDIUM (CVE-2024-35195)
+    justificacion: "Demo: excepción vencida para mostrar que deja de aplicarse sola."
+    solicitado_por: "@RonnyTabangoBIT"
+    aprobado_por: "@RonnyTabangoBIT"
+    vence: 2026-10-31
+
+# -------------------------------------------------------------------------------------
+# REGLAS POR PAQUETE Y VERSIÓN
+# Campos: id, paquete, versiones, max {severidad: cantidad}, justificacion (obligatorios)
+# Reemplazan al umbral global para las severidades que definen; el resto sigue el umbral global.
+# Si varias reglas coinciden, se usa la primera.
+# -------------------------------------------------------------------------------------
+reglas_por_paquete:
+  - id: REG-001
+    paquete: requests
+    versiones: ">=2.31.0"
+    max: { medium: 4 }
+    justificacion: "Versiones recientes: se toleran hasta 4 medias mientras se migra."
+
+  - id: REG-002
+    paquete: requests
+    versiones: "<2.31.0"
+    max: { medium: 2 }
+    justificacion: "Versiones antiguas: solo se toleran 2 medias."
